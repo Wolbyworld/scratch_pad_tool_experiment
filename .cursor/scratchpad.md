@@ -130,6 +130,87 @@
 - Validate function calling reliability
 - **Success Criteria**: Natural conversations with reliable context enrichment
 
+### Phase 5: Dynamic Scratchpad Updating
+
+#### New Requirements Analysis
+
+**Core Concept**: Implement intelligent scratchpad updating that learns from conversations and keeps personal knowledge current.
+
+**Input Data Available**:
+- Last user prompt
+- AI completion/response  
+- Function tools called (get_scratch_pad_context, analyze_media_file)
+- Tool responses and context
+- Current scratchpad content
+
+**Key Design Questions to Resolve**:
+
+1. **Trigger Strategy**: When should updates happen?
+   - After every conversation turn?
+   - When specific information types are detected?
+   - Periodically (e.g., at end of session)?
+   - User-initiated command?
+
+2. **Information Classification**: What should be stored vs. ephemeral?
+   - New facts about user (permanent info like address changes)
+   - Preferences discovered during conversation
+   - Project updates and progress
+   - Temporary interests vs. lasting preferences
+   - Corrections to existing information
+
+3. **Conflict Resolution**: How to handle contradictory information?
+   - New info contradicts existing (update vs. flag for review)
+   - Temporary vs. permanent changes
+   - User explicitly corrects vs. casual mention
+
+4. **Quality Control**: How to avoid information bloat?
+   - Relevance scoring for what's worth storing
+   - Automatic cleanup of outdated information
+   - Summarization of related facts
+
+5. **Technical Integration**: How to implement with current architecture?
+   - New function tool for GPT-4.1 to call?
+   - Background process analyzing conversation logs?
+   - Separate update service vs. integrated into Luzia?
+
+6. **User Control**: How much user involvement?
+   - Automatic updates vs. user approval required
+   - Ability to review and reject suggested updates
+   - Manual override capabilities
+
+#### Proposed Architecture Options
+
+**Option A: Function Tool Approach**
+- New `update_scratchpad(analysis: str, proposed_changes: list)` function
+- Called by GPT-4.1 when significant information detected
+- Real-time updates during conversation
+
+**Option B: Session Summary Approach**  
+- Analyze entire conversation at end of session
+- Batch processing of all learned information
+- User review before applying changes
+
+**Option C: Hybrid Approach**
+- Real-time flagging of potential updates
+- Batch processing and user review at session end
+- Critical updates (corrections) applied immediately
+
+#### Information Types to Track
+
+**Personal Facts**: DOB, address, job changes, family updates
+**Preferences**: Food, entertainment, tools, working styles  
+**Projects**: Current work, goals, progress updates, completed items
+**Media**: New files discussed, updated descriptions
+**Relationships**: People mentioned, context about connections
+**Learning**: New skills acquired, interests developed
+
+#### Technical Considerations
+
+**Privacy**: Sensitive information filtering and user consent
+**Performance**: Efficient analysis without slowing conversation
+**Reliability**: Backup and rollback capabilities for bad updates
+**Scalability**: Handle growing scratchpad size over time
+
 ## Project Status Board
 
 ### Phase 1: Foundation and Design
@@ -146,6 +227,9 @@
 
 ### Phase 4: Testing and Documentation
 - [ ] Task 4.1: Test Conversational Flows
+
+### Phase 5: Dynamic Scratchpad Updating
+- [ ] Task 5.1: New Requirements Analysis
 
 ## Current Status / Progress Tracking
 
@@ -327,7 +411,126 @@ def analyze_media_file(file_path: str) -> dict:
 - Added graceful exit handling (exit commands + Ctrl+C)
 - **Success Criteria Met**: Continuous chat with scratch pad context integration
 
-## Executor Starting Task 2.3: Add Media Processing Integration
+**Task 2.3 COMPLETED** ✅
+- Media processing integration working correctly
+- Automatic media analysis when scratch pad indicates necessity  
+- Full debugging capabilities with debug_context.txt
+- Color-coded CLI output for workflow transparency
+- **Success Criteria Met**: Media files automatically processed when scratch pad indicates necessity
+
+**PHASE 2 COMPLETE** 🎉
+
+## PHASE 5: Dynamic Scratchpad Updating
+
+### New Requirements Analysis
+
+**Core Concept**: Implement intelligent scratchpad updating that learns from conversations and keeps personal knowledge current.
+
+**Input Data Available**:
+- Last user prompt
+- AI completion/response  
+- Function tools called (get_scratch_pad_context, analyze_media_file)
+- Tool responses and context
+- Current scratchpad content
+
+**Key Design Questions to Resolve**:
+
+1. **Trigger Strategy**: When should updates happen?
+   - After every conversation turn?
+   - When specific information types are detected?
+   - Periodically (e.g., at end of session)?
+   - User-initiated command?
+
+2. **Information Classification**: What should be stored vs. ephemeral?
+   - New facts about user (permanent info like address changes)
+   - Preferences discovered during conversation
+   - Project updates and progress
+   - Temporary interests vs. lasting preferences
+   - Corrections to existing information
+
+3. **Conflict Resolution**: How to handle contradictory information?
+   - New info contradicts existing (update vs. flag for review)
+   - Temporary vs. permanent changes
+   - User explicitly corrects vs. casual mention
+
+4. **Quality Control**: How to avoid information bloat?
+   - Relevance scoring for what's worth storing
+   - Automatic cleanup of outdated information
+   - Summarization of related facts
+
+5. **Technical Integration**: How to implement with current architecture?
+   - New function tool for GPT-4.1 to call?
+   - Background process analyzing conversation logs?
+   - Separate update service vs. integrated into Luzia?
+
+6. **User Control**: How much user involvement?
+   - Automatic updates vs. user approval required
+   - Ability to review and reject suggested updates
+   - Manual override capabilities
+
+### Proposed Architecture Options
+
+**Option A: Function Tool Approach**
+- New `update_scratchpad(analysis: str, proposed_changes: list)` function
+- Called by GPT-4.1 when significant information detected
+- Real-time updates during conversation
+
+**Option B: Session Summary Approach**  
+- Analyze entire conversation at end of session
+- Batch processing of all learned information
+- User review before applying changes
+
+**Option C: Hybrid Approach**
+- Real-time flagging of potential updates
+- Batch processing and user review at session end
+- Critical updates (corrections) applied immediately
+
+### Information Types to Track
+
+**Personal Facts**: DOB, address, job changes, family updates
+**Preferences**: Food, entertainment, tools, working styles  
+**Projects**: Current work, goals, progress updates, completed items
+**Media**: New files discussed, updated descriptions
+**Relationships**: People mentioned, context about connections
+**Learning**: New skills acquired, interests developed
+
+### Technical Considerations
+
+**Privacy**: Sensitive information filtering and user consent
+**Performance**: Efficient analysis without slowing conversation
+**Reliability**: Backup and rollback capabilities for bad updates
+**Scalability**: Handle growing scratchpad size over time
+
+**FINALIZED IMPLEMENTATION APPROACH** ✅
+
+**Trigger Strategy**: 100% automatic after each user-AI cycle
+**Decision Maker**: GPT-4.1-nano analyzes conversation for updates
+**Input Data**: Last user prompt + Luzia response + function tool results + current scratchpad + no_update.txt
+**Update Philosophy**: LLM-driven intelligence, focus on explicit corrections and updates
+**Quality Control**: Simple - if LLM decides to remove/update, it does
+
+**Technical Flow**:
+1. User sends message
+2. Luzia responds (with function tools as needed)  
+3. Automatic update analysis call with GPT-4.1-nano
+4. Apply any changes to scratchpad
+
+**Implementation Tasks**:
+- [x] Create update analysis system prompt file (`config/update_analysis_prompt.txt`)
+- [x] Create no_update.txt with PII restrictions (`config/no_update.txt`)
+- [x] Build update analysis function (`update_manager.py`)
+- [x] Integrate into Luzia chat flow
+- [ ] Test update decision making
+
+**INTEGRATION COMPLETE** ✅
+
+**Technical Implementation Details**:
+- **Model**: Using `gpt-4-1106-preview` (placeholder for GPT-4.1-nano when available)
+- **Integration Point**: In `luzia.py` `_get_response()` method after final response generation
+- **Data Captured**: User message, AI response, function calls, tool responses 
+- **Error Handling**: KISS - update failures don't break conversation
+- **Logging**: Colored output with `[UPDATE]` prefix for traceability
+- **User Experience**: Invisible operation with colored logging when trace enabled
 
 ## Lessons
 

@@ -20,6 +20,7 @@ from openai import OpenAI
 from colorama import init, Fore, Back, Style
 
 from tools import ScratchPadTools, FUNCTION_SCHEMAS
+from update_manager import apply_conversation_updates
 
 # Initialize colorama for cross-platform colored output
 init(autoreset=True)
@@ -269,6 +270,37 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
             
             # Add Luzia's response to conversation history
             self.conversation_history.append({"role": "assistant", "content": luzia_response})
+            
+            # Analyze conversation for scratchpad updates (runs 100% of the time)
+            try:
+                # Prepare function call data for update analysis
+                function_calls_data = []
+                tool_responses_data = []
+                
+                if assistant_message.tool_calls:
+                    for call in assistant_message.tool_calls:
+                        function_calls_data.append({
+                            "name": call.function.name,
+                            "arguments": call.function.arguments
+                        })
+                    
+                    if scratch_pad_results:
+                        tool_responses_data.append({
+                            "function": "get_scratch_pad_context", 
+                            "result": scratch_pad_results
+                        })
+                
+                # Run update analysis in background (invisible to user, but logged)
+                apply_conversation_updates(
+                    user_message=user_message,
+                    ai_response=luzia_response,
+                    function_calls=function_calls_data,
+                    tool_responses=tool_responses_data
+                )
+            except Exception as e:
+                # KISS: Don't let update failures break the conversation
+                if self.show_trace:
+                    print(f"{Fore.RED}[UPDATE] Update analysis failed: {e}{Style.RESET_ALL}")
             
             return luzia_response
             

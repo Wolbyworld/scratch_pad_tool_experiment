@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Scratch Pad AI Tool
+Scratch Pad AI Toolmny 
 
 A personal knowledge assistant that processes queries by loading and analyzing
 a local scratch pad document to provide relevant contextual responses.

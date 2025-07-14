@@ -1,0 +1,84 @@
+# SCRATCHPAD UPDATE RESTRICTIONS
+
+This file contains types of information that should NOT be stored in the scratchpad to protect user privacy and maintain appropriate boundaries.
+
+## PERSONAL INTIMATE INFORMATION (PII)
+
+### Sexual Content
+- Sexual preferences, orientations, or practices
+- Intimate relationship details
+- Sexual health information
+- Adult content discussions
+
+### Medical & Health Privacy
+- Specific medical conditions or diagnoses
+- Medication details
+- Mental health treatment information
+- Therapy session content
+
+### Financial Privacy  
+- Specific account numbers or balances
+- Investment details
+- Salary amounts or financial struggles
+- Tax information
+
+### Security Information
+- Passwords, PINs, or security codes
+- Social Security Numbers
+- Credit card or banking details
+- Private keys or authentication tokens
+
+## SENSITIVE PERSONAL CONTENT
+
+### Family & Relationships
+- Private family conflicts or issues
+- Marital problems or relationship troubles
+- Children's private information
+- Sensitive details about friends/colleagues
+
+### Legal & Professional
+- Confidential work information
+- Legal proceedings or troubles
+- Internal company information
+- Client/customer private data
+
+### Emotional & Mental State
+- Detailed mental health struggles
+- Therapy or counseling content
+- Substance abuse issues
+- Crisis or emergency situations
+
+## TEMPORARY & INAPPROPRIATE CONTENT
+
+### Casual/Temporary Information
+- Current mood or emotional state
+- What user ate/drank today
+- Weather comments
+- Temporary frustrations or complaints
+
+### Inappropriate for Storage
+- Gossip about others
+- Negative judgments about people
+- Controversial political opinions
+- Religious or spiritual private matters
+
+## EXAMPLES OF RESTRICTED CONTENT
+
+❌ "I'm attracted to..." 
+❌ "My salary is $X"
+❌ "I'm taking medication for..."
+❌ "My password is..."
+❌ "I'm having marriage problems"
+❌ "I feel depressed today"
+
+✅ "I prefer working in teams" (work style preference)
+✅ "I live in California" (general location)
+✅ "I work as a software developer" (general job info)
+✅ "I'm interested in AI projects" (professional interest)
+
+## GUIDELINES FOR BORDERLINE CASES
+
+- **When in doubt, exclude**: If information could be considered private or sensitive, don't store it
+- **Focus on factual, non-sensitive data**: Job title, location, interests, preferences that are appropriate to share
+- **Avoid intimate details**: Keep personal information at a professional/social level
+- **Respect boundaries**: Some topics are private regardless of how casually mentioned 
