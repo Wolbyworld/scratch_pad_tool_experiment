@@ -53,4 +53,7 @@ Thumbs.db
 
 # Project specific
 debug_context.txt
-*.log 
+*.log
+
+# Sensitive personal files
+media/dni.png 

@@ -7,7 +7,7 @@
 - Description: Massachusetts Liquor ID Card for Alvaro Martinez-Higes
 - Date Added: 2024-01-25
 - Tags: identification, personal, official, DOB-1987
-- Summary: Official ID showing full name, DOB (02-12-1987), address info, and physical characteristics
+- Expired on January 21, 2021
 
 ### Gorilla Basketball Art
 - File Path: media/gorilla.png
@@ -18,15 +18,6 @@
 
 ## USER FACTS
 
-
-
-Wife's Name: Aloña
-
-Isa COO
-- hates croquetas
-
-
-Dislikes: Croquetas (same as wife Aloña)
 
 ### Personal Information
 - Full Name: Alvaro Martinez-Higes
