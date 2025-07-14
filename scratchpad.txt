@@ -1,0 +1,42 @@
+# MY SCRATCH PAD
+
+## MEDIA DOCUMENTS
+
+### Personal ID Document
+- File Path: media/dni.png
+- Description: Massachusetts Liquor ID Card for Alvaro Martinez-Higes
+- Date Added: 2024-01-25
+- Tags: identification, personal, official, DOB-1987
+- Summary: Official ID showing full name, DOB (02-12-1987), address info, and physical characteristics
+
+### Gorilla Basketball Art
+- File Path: media/gorilla.png
+- Description: Artistic image of gorilla performing slam dunk on basketball hoop. Quite spectacular
+- Date Added: 2024-01-25
+- Tags: art, basketball, gorilla, sports, creative, humor
+- Summary: Creative/humorous sports-themed artwork featuring a gorilla athlete in mid-slam dunk
+
+## USER FACTS
+
+### Personal Information
+- Full Name: Alvaro Martinez-Higes
+- Age: 37 
+- Location: Massachusetts, USA
+
+### Preferences & Skills
+- Preferred Languages: Python, JavaScript
+- Favorite Tools: VS Code, Terminal, CLI tools
+- Working Style: Prefers command-line interfaces, Test-Driven Development
+- Interests: AI productivity tools, OpenAI APIs, creative/humorous content
+
+### Current Projects
+- Building AI productivity tools with Scratch Pad concept
+- Experimenting with OpenAI APIs and multimodal processing
+- Learning about intelligent context extraction systems
+- Developing tools for personal knowledge management
+
+### Technical Background
+- Software Developer with focus on AI integration
+- Experience with LLM APIs and text processing
+- Interested in multi-user systems and scalable architecture
+- Prefers simple, efficient solutions (KISS principle) 
