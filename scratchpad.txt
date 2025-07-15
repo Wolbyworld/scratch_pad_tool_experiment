@@ -1,13 +1,19 @@
 # MY SCRATCH PAD
 
+## PDF DOCUMENTS
+
+### Luzia WBR - Week 25 (June 18, 2025)
+- File Path: media/wbr.pdf
+- Document Type: Weekly Business Review
+- Pages: 21
+- Date: June 18, 2025
+- Summary: Comprehensive business review covering strategic updates, growth metrics, and project status for Luzia AI assistant platform. Key highlights include 4.26M WAUs for WhatsApp (31.7% below plan), showing clear retention challenges. Day 1 retention is highlighted as being below target across channels, with immediate action recommended. Seasonal trends are impacting engagement and retention, with declines expected during this period. Ongoing projects to improve onboarding, gamification, and user experience are aimed at boosting retention. Key highlights include 4.26M WAUs for WhatsApp (31.7% below plan), showing clear retention challenges.
+- Key Topics: Growth KPIs, retention metrics, search improvements, monetization strategies, dynamic tools, user acquisition, brand development, performance optimization
+- Date Added: 2024-01-25
+- Tags: business-review, metrics, luzia, ai-assistant, growth, retention, product-updates
+
 ## MEDIA DOCUMENTS
 
-### Personal ID Document
-- File Path: media/dni.png
-- Description: Massachusetts Liquor ID Card for Alvaro Martinez-Higes
-- Date Added: 2024-01-25
-- Tags: identification, personal, official, DOB-1987
-- Expired on January 21, 2021
 
 ### Gorilla Basketball Art
 - File Path: media/gorilla.png

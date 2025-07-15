@@ -120,6 +120,23 @@ When you have analyzed media files, use that information directly in your respon
                     
                     results.append(f"Media analysis: {result}")
                     
+                elif function_name == "analyze_pdf_file":
+                    file_path = args["file_path"]
+                    if self.show_trace:
+                        print(f"{Fore.MAGENTA}📄 Analyzing PDF: {file_path}{Style.RESET_ALL}")
+                    
+                    result = self.tools.analyze_pdf_file(file_path)
+                    
+                    if self.show_trace:
+                        if result.get("status") == "success":
+                            analysis_text = result.get("analysis", "")
+                            analysis_preview = analysis_text[:80] if isinstance(analysis_text, str) else str(analysis_text)[:80]
+                            print(f"{Fore.GREEN}✅ PDF analysis: {analysis_preview}...{Style.RESET_ALL}")
+                        else:
+                            print(f"{Fore.RED}❌ PDF analysis failed: {result.get('message', 'Unknown error')}{Style.RESET_ALL}")
+                    
+                    results.append(f"PDF analysis: {result}")
+                    
                 else:
                     results.append(f"Unknown function: {function_name}")
                     

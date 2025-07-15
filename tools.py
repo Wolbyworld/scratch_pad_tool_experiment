@@ -12,6 +12,7 @@ import base64
 from typing import Dict, Any
 from dotenv import load_dotenv
 from openai import OpenAI
+import fitz  # PyMuPDF for PDF processing
 
 
 class ScratchPadTools:
@@ -187,14 +188,8 @@ Please follow the system prompt rules to determine if media files are needed and
                 # Handle image files
                 return self._analyze_image(file_path)
             elif file_ext == '.pdf':
-                # For now, return basic info for PDFs (can be enhanced later)
-                return {
-                    "status": "success",
-                    "file_path": file_path,
-                    "file_type": "pdf",
-                    "analysis": "PDF file detected. Visual content analysis not yet implemented for PDFs.",
-                    "recommendation": "Use the text summary from the scratch pad for PDF content."
-                }
+                # Handle PDF files
+                return self._analyze_pdf(file_path)
             else:
                 return {
                     "status": "error",
@@ -209,6 +204,83 @@ Please follow the system prompt rules to determine if media files are needed and
                 "message": f"Error analyzing media file: {e}",
                 "analysis": "",
                 "file_type": "unknown"
+            }
+    
+    def _analyze_pdf(self, pdf_path: str) -> Dict[str, Any]:
+        """Analyze a PDF file by extracting text and providing intelligent summary."""
+        try:
+            # Open the PDF document
+            doc = fitz.open(pdf_path)
+            
+            # Extract text from all pages
+            text_content = ""
+            pages = len(doc)
+            for page_num in range(pages):
+                page = doc[page_num]
+                text_content += f"\n--- Page {page_num + 1} ---\n"
+                text_content += page.get_text()
+            
+            doc.close()
+            
+            # Get basic document info
+            words = len(text_content.split())
+            chars = len(text_content)
+            
+            # Use GPT to analyze the PDF content
+            analysis_response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """You are a document analysis specialist. Analyze the provided PDF text content and provide:
+1. A comprehensive summary of the document
+2. Key topics and themes
+3. Important information that would be relevant for personal knowledge management
+4. Document type and purpose
+5. Any actionable insights or important details
+
+Be thorough but concise."""
+                    },
+                    {
+                        "role": "user",
+                        "content": f"""Analyze this PDF document content:
+
+DOCUMENT CONTENT:
+{text_content[:12000]}  # Limit to avoid token limits
+
+DOCUMENT STATISTICS:
+- Pages: {pages}
+- Words: {words}
+- Characters: {chars}
+
+Please provide a detailed analysis of this document."""
+                    }
+                ],
+                max_tokens=1500,
+                temperature=0.3
+            )
+            
+            analysis = analysis_response.choices[0].message.content
+            
+            return {
+                "status": "success",
+                "file_path": pdf_path,
+                "file_type": "pdf",
+                "analysis": analysis,
+                "extracted_text": text_content[:2000],  # First 2000 chars for reference
+                "document_stats": {
+                    "pages": pages,
+                    "words": words,
+                    "characters": chars
+                }
+            }
+            
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Error analyzing PDF: {e}",
+                "analysis": "",
+                "file_type": "pdf"
             }
     
     def _analyze_image(self, image_path: str) -> Dict[str, Any]:
@@ -277,6 +349,48 @@ Please follow the system prompt rules to determine if media files are needed and
                 "file_type": "image"
             }
 
+    def analyze_pdf_file(self, file_path: str) -> Dict[str, Any]:
+        """
+        Analyze a PDF file and return detailed text analysis.
+        This function is specifically for PDF document analysis.
+        
+        Args:
+            file_path: Path to the PDF file to analyze
+            
+        Returns:
+            Dict containing PDF analysis results with extracted text and AI analysis
+        """
+        try:
+            # Check if file exists
+            if not os.path.exists(file_path):
+                return {
+                    "status": "error",
+                    "message": f"PDF file not found: {file_path}",
+                    "analysis": "",
+                    "file_type": "pdf"
+                }
+            
+            # Check if it's actually a PDF
+            file_ext = os.path.splitext(file_path)[1].lower()
+            if file_ext != '.pdf':
+                return {
+                    "status": "error",
+                    "message": f"Expected PDF file, got: {file_ext}",
+                    "analysis": "",
+                    "file_type": file_ext
+                }
+            
+            # Analyze the PDF
+            return self._analyze_pdf(file_path)
+            
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Error analyzing PDF file: {e}",
+                "analysis": "",
+                "file_type": "pdf"
+            }
+
 
 # Function schemas for OpenAI function calling
 FUNCTION_SCHEMAS = [
@@ -308,6 +422,23 @@ FUNCTION_SCHEMAS = [
                     "file_path": {
                         "type": "string",
                         "description": "Path to the media file to analyze (e.g., 'media/gorilla.png')"
+                    }
+                },
+                "required": ["file_path"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "analyze_pdf_file",
+            "description": "Analyze a PDF document to extract text content and provide detailed analysis. Call this function when the scratch pad context indicates that PDF document analysis would be helpful for answering the user's question.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to the PDF file to analyze (e.g., 'media/wbr.pdf')"
                     }
                 },
                 "required": ["file_path"]
