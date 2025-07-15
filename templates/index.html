@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luzia Chat with Scratchpad</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            line-height: 1.6;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 0 20px 20px 0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin: 20px 0 20px 20px;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .chat-header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .chat-header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            background: #f8fafc;
+        }
+
+        .message {
+            display: flex;
+            gap: 1rem;
+            max-width: 85%;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+        }
+
+        .message-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 600;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.assistant .message-avatar {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .message-bubble {
+            position: relative;
+            border-radius: 20px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .message-content {
+            padding: 1.2rem 1.5rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+        }
+
+        .debug-info {
+            background: #f3f4f6;
+            border-top: 1px solid #e5e7eb;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.85rem;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .debug-badge {
+            background: #10b981;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .debug-badge.error {
+            background: #ef4444;
+        }
+
+        .debug-toggle {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+
+        .debug-toggle:hover {
+            background: #e5e7eb;
+        }
+
+        .chat-input-container {
+            padding: 2rem;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 25px;
+            font-size: 1rem;
+            resize: none;
+            min-height: 3rem;
+            max-height: 8rem;
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .send-button {
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .send-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .scratchpad-container {
+            width: 400px;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px 0 0 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin: 20px 20px 20px 0;
+            overflow: hidden;
+        }
+
+        .scratchpad-header {
+            padding: 2rem;
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            color: white;
+            text-align: center;
+        }
+
+        .scratchpad-header h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .scratchpad-header p {
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .scratchpad-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding: 2rem;
+            background: #f8fafc;
+        }
+
+        .scratchpad-textarea {
+            flex: 1;
+            padding: 1.5rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.9rem;
+            resize: none;
+            background: white;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .scratchpad-textarea:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .scratchpad-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .scratchpad-button {
+            padding: 0.75rem 1.5rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .scratchpad-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .scratchpad-button.save {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border-color: #10b981;
+        }
+
+        .scratchpad-button.save:hover {
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+        }
+
+        .scratchpad-status {
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 0.5rem 0;
+        }
+
+        .loading {
+            color: #6b7280;
+            font-style: italic;
+        }
+
+        .error {
+            color: #ef4444;
+        }
+
+        .success {
+            color: #10b981;
+        }
+
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            font-style: italic;
+            color: #6b7280;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #6b7280;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.4;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            
+            .chat-container {
+                margin: 10px;
+                border-radius: 20px;
+            }
+            
+            .scratchpad-container {
+                width: 100%;
+                height: 40vh;
+                margin: 10px;
+                border-radius: 20px;
+            }
+            
+            .message {
+                max-width: 95%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>Luzia Chat</h1>
+            <p>Your AI assistant with scratchpad context</p>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="message assistant">
+                <div class="message-avatar">L</div>
+                <div class="message-bubble">
+                    <div class="message-content">Hi! I'm Luzia, your helpful assistant. I can access your scratchpad for context. What would you like to chat about?</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="typing-indicator" id="typingIndicator">
+            <span>Luzia is thinking</span>
+            <div class="typing-dots">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+        
+        <div class="chat-input-container">
+            <div class="chat-input-wrapper">
+                <textarea 
+                    class="chat-input" 
+                    id="chatInput" 
+                    placeholder="Type your message here..."
+                    rows="1"
+                ></textarea>
+                <button class="send-button" id="sendButton">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="scratchpad-container">
+        <div class="scratchpad-header">
+            <h2>Scratchpad</h2>
+            <p>Your personal knowledge base</p>
+        </div>
+        
+        <div class="scratchpad-content">
+            <textarea 
+                class="scratchpad-textarea" 
+                id="scratchpadTextarea" 
+                placeholder="Loading scratchpad...">
+            </textarea>
+            
+            <div class="scratchpad-actions">
+                <button class="scratchpad-button save" id="saveButton">Save</button>
+                <button class="scratchpad-button" id="reloadButton">Reload</button>
+                <div class="scratchpad-status" id="scratchpadStatus"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elements
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const sendButton = document.getElementById('sendButton');
+        const scratchpadTextarea = document.getElementById('scratchpadTextarea');
+        const saveButton = document.getElementById('saveButton');
+        const reloadButton = document.getElementById('reloadButton');
+        const scratchpadStatus = document.getElementById('scratchpadStatus');
+        const typingIndicator = document.getElementById('typingIndicator');
+
+        // Auto-resize textarea
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 128) + 'px';
+        });
+
+        // Send message on Enter (but not Shift+Enter)
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Send button click
+        sendButton.addEventListener('click', sendMessage);
+
+        // Save scratchpad
+        saveButton.addEventListener('click', saveScratchpad);
+
+        // Reload scratchpad
+        reloadButton.addEventListener('click', loadScratchpad);
+
+        // Load scratchpad on page load
+        loadScratchpad();
+
+        function addMessage(content, role, debugInfo = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = role === 'user' ? 'U' : 'L';
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.textContent = content;
+            
+            bubble.appendChild(messageContent);
+            
+            // Add debug info if available
+            if (debugInfo && role === 'assistant') {
+                const debugDiv = document.createElement('div');
+                debugDiv.className = 'debug-info';
+                
+                let debugText = '';
+                if (debugInfo.tools_used && debugInfo.tools_used.length > 0) {
+                    debugText += `Tools: ${debugInfo.tools_used.join(', ')}`;
+                }
+                if (debugInfo.context_retrieved) {
+                    debugText += debugText ? ' • Context loaded' : 'Context loaded';
+                }
+                if (debugInfo.media_analyzed) {
+                    debugText += debugText ? ' • Media analyzed' : 'Media analyzed';
+                }
+                if (debugInfo.error) {
+                    debugText = 'Error occurred';
+                }
+                
+                if (debugText) {
+                    const badge = document.createElement('span');
+                    badge.className = `debug-badge ${debugInfo.error ? 'error' : ''}`;
+                    badge.textContent = debugInfo.error ? 'Error' : 'AI Tools';
+                    
+                    const text = document.createElement('span');
+                    text.textContent = debugText;
+                    
+                    debugDiv.appendChild(badge);
+                    debugDiv.appendChild(text);
+                    bubble.appendChild(debugDiv);
+                }
+            }
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(bubble);
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            typingIndicator.style.display = 'flex';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            typingIndicator.style.display = 'none';
+        }
+
+        function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            // Add user message
+            addMessage(message, 'user');
+            
+            // Clear input
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+            
+            // Disable send button and show typing indicator
+            sendButton.disabled = true;
+            sendButton.textContent = 'Sending...';
+            showTypingIndicator();
+            
+            // Send to backend
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideTypingIndicator();
+                
+                if (data.status === 'success') {
+                    addMessage(data.message, 'assistant', data.debug_info);
+                } else {
+                    addMessage(data.message, 'assistant', { error: true });
+                }
+                
+                // Re-enable send button
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send';
+                
+                // Focus input
+                chatInput.focus();
+            })
+            .catch(error => {
+                hideTypingIndicator();
+                addMessage(`Error: ${error.message}`, 'assistant', { error: true });
+                
+                // Re-enable send button
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send';
+            });
+        }
+
+        function loadScratchpad() {
+            scratchpadStatus.textContent = 'Loading...';
+            scratchpadStatus.className = 'scratchpad-status loading';
+            
+            fetch('/scratchpad')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    scratchpadTextarea.value = data.content;
+                    scratchpadStatus.textContent = 'Loaded';
+                    scratchpadStatus.className = 'scratchpad-status success';
+                } else {
+                    scratchpadStatus.textContent = 'Error loading';
+                    scratchpadStatus.className = 'scratchpad-status error';
+                }
+                
+                // Clear status after 3 seconds
+                setTimeout(() => {
+                    scratchpadStatus.textContent = '';
+                    scratchpadStatus.className = 'scratchpad-status';
+                }, 3000);
+            })
+            .catch(error => {
+                scratchpadStatus.textContent = 'Error loading';
+                scratchpadStatus.className = 'scratchpad-status error';
+                
+                setTimeout(() => {
+                    scratchpadStatus.textContent = '';
+                    scratchpadStatus.className = 'scratchpad-status';
+                }, 3000);
+            });
+        }
+
+        function saveScratchpad() {
+            scratchpadStatus.textContent = 'Saving...';
+            scratchpadStatus.className = 'scratchpad-status loading';
+            
+            fetch('/scratchpad', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ content: scratchpadTextarea.value })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    scratchpadStatus.textContent = 'Saved';
+                    scratchpadStatus.className = 'scratchpad-status success';
+                } else {
+                    scratchpadStatus.textContent = 'Error saving';
+                    scratchpadStatus.className = 'scratchpad-status error';
+                }
+                
+                // Clear status after 3 seconds
+                setTimeout(() => {
+                    scratchpadStatus.textContent = '';
+                    scratchpadStatus.className = 'scratchpad-status';
+                }, 3000);
+            })
+            .catch(error => {
+                scratchpadStatus.textContent = 'Error saving';
+                scratchpadStatus.className = 'scratchpad-status error';
+                
+                setTimeout(() => {
+                    scratchpadStatus.textContent = '';
+                    scratchpadStatus.className = 'scratchpad-status';
+                }, 3000);
+            });
+        }
+
+        // Add some keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 's' && document.activeElement === scratchpadTextarea) {
+                e.preventDefault();
+                saveScratchpad();
+            }
+        });
+    </script>
+</body>
+</html>
