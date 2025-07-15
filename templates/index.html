@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luzia Chat with Scratchpad</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f9fa;
+            height: 100vh;
+            display: flex;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: white;
+            border-right: 1px solid #e5e7eb;
+        }
+
+        .chat-header {
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .chat-header h1 {
+            color: #374151;
+            font-size: 1.5rem;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            display: flex;
+            gap: 0.75rem;
+            max-width: 80%;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+        }
+
+        .message-content {
+            padding: 0.75rem 1rem;
+            border-radius: 1rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .message.assistant .message-content {
+            background-color: #f1f3f4;
+            color: #374151;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .message.assistant .message-avatar {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .chat-input-container {
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-end;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 2.5rem;
+            max-height: 6rem;
+        }
+
+        .send-button {
+            padding: 0.75rem 1.5rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.2s;
+        }
+
+        .send-button:hover {
+            background-color: #0056b3;
+        }
+
+        .send-button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .scratchpad-container {
+            width: 400px;
+            display: flex;
+            flex-direction: column;
+            background-color: white;
+            border-left: 1px solid #e5e7eb;
+        }
+
+        .scratchpad-header {
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .scratchpad-header h2 {
+            color: #374151;
+            font-size: 1.25rem;
+        }
+
+        .scratchpad-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 1rem;
+        }
+
+        .scratchpad-textarea {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            resize: none;
+            background-color: #f8f9fa;
+        }
+
+        .scratchpad-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .scratchpad-button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.25rem;
+            background-color: white;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .scratchpad-button:hover {
+            background-color: #f8f9fa;
+        }
+
+        .scratchpad-button.save {
+            background-color: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+
+        .scratchpad-button.save:hover {
+            background-color: #059669;
+        }
+
+        .loading {
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .error {
+            color: #dc3545;
+        }
+
+        .success {
+            color: #28a745;
+        }
+
+        @media (max-width: 768px) {
+            .scratchpad-container {
+                width: 100%;
+                height: 50vh;
+                border-left: none;
+                border-top: 1px solid #e5e7eb;
+            }
+            
+            body {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>Luzia Chat</h1>
+        </div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="message assistant">
+                <div class="message-avatar">L</div>
+                <div class="message-content">Hi! I'm Luzia, your helpful assistant. I can access your scratchpad for context. What would you like to chat about?</div>
+            </div>
+        </div>
+        
+        <div class="chat-input-container">
+            <div class="chat-input-wrapper">
+                <textarea 
+                    class="chat-input" 
+                    id="chatInput" 
+                    placeholder="Type your message here..."
+                    rows="1"
+                ></textarea>
+                <button class="send-button" id="sendButton">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="scratchpad-container">
+        <div class="scratchpad-header">
+            <h2>Scratchpad</h2>
+        </div>
+        
+        <div class="scratchpad-content">
+            <textarea 
+                class="scratchpad-textarea" 
+                id="scratchpadTextarea" 
+                placeholder="Loading scratchpad...">
+            </textarea>
+            
+            <div class="scratchpad-actions">
+                <button class="scratchpad-button save" id="saveButton">Save</button>
+                <button class="scratchpad-button" id="reloadButton">Reload</button>
+                <span id="scratchpadStatus"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elements
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const sendButton = document.getElementById('sendButton');
+        const scratchpadTextarea = document.getElementById('scratchpadTextarea');
+        const saveButton = document.getElementById('saveButton');
+        const reloadButton = document.getElementById('reloadButton');
+        const scratchpadStatus = document.getElementById('scratchpadStatus');
+
+        // Auto-resize textarea
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 96) + 'px';
+        });
+
+        // Send message on Enter (but not Shift+Enter)
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Send button click
+        sendButton.addEventListener('click', sendMessage);
+
+        // Save scratchpad
+        saveButton.addEventListener('click', saveScratchpad);
+
+        // Reload scratchpad
+        reloadButton.addEventListener('click', loadScratchpad);
+
+        // Load scratchpad on page load
+        loadScratchpad();
+
+        function addMessage(content, role) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = role === 'user' ? 'U' : 'L';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.textContent = content;
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            // Add user message
+            addMessage(message, 'user');
+            
+            // Clear input
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+            
+            // Disable send button
+            sendButton.disabled = true;
+            sendButton.textContent = 'Sending...';
+            
+            // Add loading message
+            addMessage('Thinking...', 'assistant');
+            const loadingMessage = chatMessages.lastElementChild;
+            loadingMessage.querySelector('.message-content').classList.add('loading');
+            
+            // Send to backend
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Remove loading message
+                loadingMessage.remove();
+                
+                // Add actual response
+                if (data.status === 'success') {
+                    addMessage(data.response, 'assistant');
+                } else {
+                    addMessage(data.response, 'assistant');
+                    chatMessages.lastElementChild.querySelector('.message-content').classList.add('error');
+                }
+                
+                // Re-enable send button
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send';
+                
+                // Focus input
+                chatInput.focus();
+            })
+            .catch(error => {
+                // Remove loading message
+                loadingMessage.remove();
+                
+                // Add error message
+                addMessage(`Error: ${error.message}`, 'assistant');
+                chatMessages.lastElementChild.querySelector('.message-content').classList.add('error');
+                
+                // Re-enable send button
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send';
+            });
+        }
+
+        function loadScratchpad() {
+            scratchpadStatus.textContent = 'Loading...';
+            scratchpadStatus.className = 'loading';
+            
+            fetch('/scratchpad')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    scratchpadTextarea.value = data.content;
+                    scratchpadStatus.textContent = 'Loaded';
+                    scratchpadStatus.className = 'success';
+                } else {
+                    scratchpadStatus.textContent = 'Error loading';
+                    scratchpadStatus.className = 'error';
+                }
+                
+                // Clear status after 3 seconds
+                setTimeout(() => {
+                    scratchpadStatus.textContent = '';
+                    scratchpadStatus.className = '';
+                }, 3000);
+            })
+            .catch(error => {
+                scratchpadStatus.textContent = 'Error loading';
+                scratchpadStatus.className = 'error';
+                
+                setTimeout(() => {
+                    scratchpadStatus.textContent = '';
+                    scratchpadStatus.className = '';
+                }, 3000);
+            });
+        }
+
+        function saveScratchpad() {
+            scratchpadStatus.textContent = 'Saving...';
+            scratchpadStatus.className = 'loading';
+            
+            fetch('/scratchpad', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ content: scratchpadTextarea.value })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    scratchpadStatus.textContent = 'Saved';
+                    scratchpadStatus.className = 'success';
+                } else {
+                    scratchpadStatus.textContent = 'Error saving';
+                    scratchpadStatus.className = 'error';
+                }
+                
+                // Clear status after 3 seconds
+                setTimeout(() => {
+                    scratchpadStatus.textContent = '';
+                    scratchpadStatus.className = '';
+                }, 3000);
+            })
+            .catch(error => {
+                scratchpadStatus.textContent = 'Error saving';
+                scratchpadStatus.className = 'error';
+                
+                setTimeout(() => {
+                    scratchpadStatus.textContent = '';
+                    scratchpadStatus.className = '';
+                }, 3000);
+            });
+        }
+    </script>
+</body>
+</html>
