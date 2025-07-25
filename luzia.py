@@ -120,6 +120,40 @@ When you have analyzed media files, use that information directly in your respon
                     
                     results.append(f"Media analysis: {result}")
                     
+                elif function_name == "solve_math":
+                    query = args["query"]
+                    if self.show_trace:
+                        print(f"{Fore.CYAN}🧮 Processing math query: {query[:50]}...{Style.RESET_ALL}")
+                    
+                    result = self.tools.solve_math(query)
+                    
+                    if self.show_trace:
+                        if result.get("status") == "success":
+                            routing_decision = result.get("routing_decision", {})
+                            operation = routing_decision.get("operation", "unknown")
+                            context_used = routing_decision.get("context_used", False)
+                            context_icon = "📝" if context_used else "⚡"
+                            
+                            print(f"{Fore.GREEN}✅ Math result ({operation}): {context_icon} {'with context' if context_used else 'direct computation'}{Style.RESET_ALL}")
+                            
+                            # Show the mathematical result preview
+                            if "solutions" in result:
+                                print(f"{Fore.BLUE}📊 Solutions: {result['solutions']}{Style.RESET_ALL}")
+                            elif "result" in result:
+                                print(f"{Fore.BLUE}📊 Result: {result['result']}{Style.RESET_ALL}")
+                            elif "simplified_expression" in result:
+                                print(f"{Fore.BLUE}📊 Simplified: {result['simplified_expression']}{Style.RESET_ALL}")
+                            elif "derivative" in result:
+                                print(f"{Fore.BLUE}📊 Derivative: {result['derivative']}{Style.RESET_ALL}")
+                            elif "integral" in result:
+                                print(f"{Fore.BLUE}📊 Integral: {result['integral']}{Style.RESET_ALL}")
+                            elif "factored_expression" in result:
+                                print(f"{Fore.BLUE}📊 Factored: {result['factored_expression']}{Style.RESET_ALL}")
+                        else:
+                            print(f"{Fore.RED}❌ Math error: {result.get('message', 'Unknown error')}{Style.RESET_ALL}")
+                    
+                    results.append(f"Math result: {result}")
+                    
                 else:
                     results.append(f"Unknown function: {function_name}")
                     
@@ -256,15 +290,61 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
                         if self.show_trace:
                             print(f"{Fore.RED}❌ Error parsing media recommendations: {e}{Style.RESET_ALL}")
                 
-                # Get final response with all function results
+                # Get final response with all function results (INCLUDING mathematical functions)
                 final_response = self.client.chat.completions.create(
                     model="gpt-4.1",
                     messages=[{"role": "system", "content": self.system_prompt}] + self.conversation_history,
+                    tools=FUNCTION_SCHEMAS,  # ✅ CRITICAL FIX: Enable mathematical functions
                     max_tokens=1000,
                     temperature=0.7
                 )
                 
-                luzia_response = final_response.choices[0].message.content
+                final_message = final_response.choices[0].message
+                
+                # Handle any mathematical function calls in the final response
+                if final_message.tool_calls:
+                    if self.show_trace:
+                        print(f"{Fore.CYAN}🧮 Mathematical functions called: {[call.function.name for call in final_message.tool_calls]}{Style.RESET_ALL}")
+                    
+                    # Execute mathematical function calls
+                    math_function_results = self._handle_function_calls(final_message.tool_calls)
+                    
+                    # Add function call to conversation history
+                    self.conversation_history.append({
+                        "role": "assistant",
+                        "content": final_message.content,
+                        "tool_calls": [
+                            {
+                                "id": call.id,
+                                "type": "function", 
+                                "function": {
+                                    "name": call.function.name,
+                                    "arguments": call.function.arguments
+                                }
+                            } for call in final_message.tool_calls
+                        ]
+                    })
+                    
+                    # Add function results to conversation history
+                    for i, call in enumerate(final_message.tool_calls):
+                        result_line = math_function_results.split("\n")[i] if i < len(math_function_results.split("\n")) else ""
+                        self.conversation_history.append({
+                            "role": "tool",
+                            "tool_call_id": call.id,
+                            "content": result_line
+                        })
+                    
+                    # Generate final natural language response with mathematical results
+                    natural_response = self.client.chat.completions.create(
+                        model="gpt-4.1",
+                        messages=[{"role": "system", "content": self.system_prompt}] + self.conversation_history,
+                        max_tokens=1000,
+                        temperature=0.7
+                    )
+                    
+                    luzia_response = natural_response.choices[0].message.content
+                else:
+                    luzia_response = final_message.content
             else:
                 luzia_response = assistant_message.content
             

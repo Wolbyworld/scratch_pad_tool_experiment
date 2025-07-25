@@ -23,6 +23,7 @@
 - Full Name: Alvaro Martinez-Higes
 - Age: 37 
 - Location: Massachusetts, USA
+- Wife: Aloña, 40 years old
 
 ### Preferences & Skills
 - Preferred Languages: Python, JavaScript
