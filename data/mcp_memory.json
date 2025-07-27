@@ -53,9 +53,95 @@
     },
     {
       "name": "Assistant",
+      "entityType": "other",
+      "observations": []
+    },
+    {
+      "name": "Aloña",
+      "entityType": "person",
+      "observations": [
+        "Aloña is the wife of the user."
+      ]
+    },
+    {
+      "name": "Wife",
+      "entityType": "person",
+      "observations": []
+    },
+    {
+      "name": "x",
       "entityType": "concept",
       "observations": [
-        "does not have personal info about User or User's wife"
+        "x is a variable in the equation",
+        "x can take complex values"
+      ]
+    },
+    {
+      "name": "i",
+      "entityType": "concept",
+      "observations": [
+        "i is the imaginary unit",
+        "i is defined as the square root of -1"
+      ]
+    },
+    {
+      "name": "√2",
+      "entityType": "concept",
+      "observations": []
+    },
+    {
+      "name": "Equation",
+      "entityType": "concept",
+      "observations": [
+        "Represents a mathematical relationship",
+        "Can be solved to find the value of x"
+      ]
+    },
+    {
+      "name": "3x + 7 = 22",
+      "entityType": "concept",
+      "observations": [
+        "A linear equation in one variable"
+      ]
+    },
+    {
+      "name": "sqrt(2)",
+      "entityType": "concept",
+      "observations": [
+        "sqrt(2) is the square root of 2",
+        "sqrt(2) is an irrational number"
+      ]
+    },
+    {
+      "name": "quadratic equation",
+      "entityType": "concept",
+      "observations": [
+        "The equation is in the form of ax^2 + bx + c = 0.",
+        "The equation 2+x^2=0 can be solved for x."
+      ]
+    },
+    {
+      "name": "derivative",
+      "entityType": "concept",
+      "observations": [
+        "represents the rate of change of a function",
+        "the derivative of x^3 + 2x is 3x^2 + 2"
+      ]
+    },
+    {
+      "name": "x^3 + 2x",
+      "entityType": "concept",
+      "observations": [
+        "This is a polynomial function.",
+        "The derivative of this function is 3x^2 + 2."
+      ]
+    },
+    {
+      "name": "sin(x)",
+      "entityType": "concept",
+      "observations": [
+        "sin(x) is a trigonometric function.",
+        "The integral of sin(x) is -cos(x) + C, where C is the constant of integration."
       ]
     }
   ],
@@ -69,6 +155,36 @@
       "from": "Sarah",
       "to": "AI chatbot",
       "relationType": "works_on"
+    },
+    {
+      "from": "User",
+      "to": "Wife",
+      "relationType": "is_spouse_of"
+    },
+    {
+      "from": "x",
+      "to": "i√2",
+      "relationType": "solution_to"
+    },
+    {
+      "from": "x",
+      "to": "-i√2",
+      "relationType": "solution_to"
+    },
+    {
+      "from": "x",
+      "to": "i",
+      "relationType": "is_related_to"
+    },
+    {
+      "from": "x",
+      "to": "sqrt(2)",
+      "relationType": "is_related_to"
+    },
+    {
+      "from": "x^3 + 2x",
+      "to": "derivative",
+      "relationType": "is_related_to"
     }
   ]
 }

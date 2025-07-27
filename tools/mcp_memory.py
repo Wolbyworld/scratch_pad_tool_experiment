@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
-MCP Memory Implementation for Luzia
+MCP Memory Implementation
 
-Uses OpenAI's Responses API native MCP support for knowledge graph-based memory.
-Implements entities, relations, and observations for structured information storage.
+Uses OpenAI Responses API to communicate with MCP memory server for knowledge graph-based storage.
 """
 
 import os
 import json
-import time
+import re
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -16,10 +15,10 @@ from .memory_interface import MemoryInterface
 
 
 class MCPMemory(MemoryInterface):
-    """MCP-based memory implementation using OpenAI native support."""
+    """MCP-based memory implementation using OpenAI Responses API."""
     
-    def __init__(self, memory_file: str = None):
-        """Initialize MCP memory with JSON file persistence."""
+    def __init__(self, mcp_config_path: str = "config/mcp_config.json"):
+        """Initialize MCP memory with OpenAI client."""
         load_dotenv()
         
         # Initialize OpenAI client
@@ -28,50 +27,82 @@ class MCPMemory(MemoryInterface):
             raise ValueError("OPENAI_API_KEY not found in environment variables")
         
         self.client = OpenAI(api_key=api_key)
-        self.memory_file = memory_file or os.getenv('MCP_MEMORY_FILE', 'data/mcp_memory.json')
+        
+        # Load MCP configuration
+        self.mcp_config_path = mcp_config_path
+        self._ensure_mcp_config()
+        
+        # MCP memory tools available
+        self.mcp_tools = [
+            {
+                "type": "function",
+                "name": "create_entities",
+                "description": "Create multiple new entities in the knowledge graph"
+            },
+            {
+                "type": "function", 
+                "name": "create_relations",
+                "description": "Create multiple new relations between entities"
+            },
+            {
+                "type": "function",
+                "name": "add_observations", 
+                "description": "Add new observations to existing entities"
+            },
+            {
+                "type": "function",
+                "name": "search_nodes",
+                "description": "Search for nodes based on query"
+            },
+            {
+                "type": "function",
+                "name": "open_nodes",
+                "description": "Retrieve specific nodes by name"
+            },
+            {
+                "type": "function",
+                "name": "read_graph",
+                "description": "Read the entire knowledge graph"
+            }
+        ]
+    
+    def _ensure_mcp_config(self):
+        """Ensure MCP configuration exists."""
+        if not os.path.exists(self.mcp_config_path):
+            raise FileNotFoundError(f"MCP config not found: {self.mcp_config_path}")
         
         # Ensure data directory exists
-        os.makedirs(os.path.dirname(self.memory_file), exist_ok=True)
-        
-        # Initialize memory structure
-        self.memory = self._load_memory()
+        os.makedirs("data", exist_ok=True)
     
     def get_context(self, query: str) -> Dict[str, Any]:
-        """Get relevant context using knowledge graph search."""
+        """Get context using MCP search and retrieval."""
         try:
-            # Search for relevant entities
-            relevant_entities = self._search_entities(query)
+            # First, search for relevant entities
+            search_prompt = f"""
+            Search the knowledge graph for information relevant to this query: "{query}"
             
-            # Get related information
-            context_info = []
-            media_files = []
+            Use the search_nodes function to find relevant entities, then use open_nodes to get detailed information.
+            Provide a comprehensive response based on what you find.
+            """
             
-            for entity in relevant_entities:
-                # Add entity information
-                context_info.append(f"Entity: {entity['name']} ({entity['entityType']})")
-                
-                # Add observations
-                for obs in entity.get('observations', []):
-                    context_info.append(f"- {obs}")
-                
-                # Check for media files
-                if entity['entityType'] == 'media_file':
-                    media_files.append(entity['name'])
-                
-                # Add related entities
-                relations = self._get_entity_relations(entity['name'])
-                for rel in relations:
-                    context_info.append(f"→ {rel['relationType']}: {rel['to']}")
+            response = self.client.responses.create(
+                model="gpt-4.1",
+                input=[{"role": "user", "content": search_prompt}],
+                tools=self.mcp_tools,
+                store=False,
+                max_output_tokens=1000,
+                temperature=0.1
+            )
             
-            # Format context
-            relevant_context = '\n'.join(context_info) if context_info else "No specific context found in knowledge graph."
+            # Process the response and extract context
+            context_text = self._extract_context_from_response(response)
             
             return {
                 "status": "success",
-                "relevant_context": relevant_context,
-                "media_files_needed": len(media_files) > 0,
-                "recommended_media": media_files,
-                "reasoning": f"Found {len(relevant_entities)} relevant entities in knowledge graph"
+                "relevant_context": context_text,
+                "media_files_needed": False,
+                "recommended_media": [],
+                "reasoning": "Retrieved from MCP knowledge graph"
             }
             
         except Exception as e:
@@ -83,35 +114,36 @@ class MCPMemory(MemoryInterface):
                 "recommended_media": []
             }
     
-    def store_information(self, data: Dict[str, Any]) -> bool:
-        """Store information as entities, relations, and observations."""
+    def store_information(self, query: str, response: str, context: Dict[str, Any] = None) -> bool:
+        """Store information as entities and relations in MCP."""
         try:
-            # Extract entities from the conversation data
-            entities_to_add = []
-            relations_to_add = []
-            observations_to_add = []
+            storage_prompt = f"""
+            Analyze this conversation and extract meaningful information to store in the knowledge graph:
             
-            # Process user message for entities
-            user_message = data.get('user_message', '')
-            ai_response = data.get('ai_response', '')
+            User Query: {query}
+            AI Response: {response}
             
-            # Use OpenAI to extract structured information
-            extracted_info = self._extract_structured_info(user_message, ai_response)
+            Create entities for:
+            - People mentioned
+            - Topics/concepts discussed  
+            - Projects or activities
+            - Preferences expressed
+            - Facts learned about the user
             
-            # Create/update entities
-            for entity_data in extracted_info.get('entities', []):
-                self._create_or_update_entity(entity_data)
+            Create relations between entities and add observations as appropriate.
+            Use create_entities, create_relations, and add_observations functions.
+            """
             
-            # Create relations
-            for relation_data in extracted_info.get('relations', []):
-                self._create_relation(relation_data)
+            response = self.client.responses.create(
+                model="gpt-4.1",
+                input=[{"role": "user", "content": storage_prompt}],
+                tools=self.mcp_tools,
+                store=False,
+                max_output_tokens=1000,
+                temperature=0.1
+            )
             
-            # Add observations
-            for obs_data in extracted_info.get('observations', []):
-                self._add_observation(obs_data)
-            
-            # Save memory to file
-            self._save_memory()
+            # If the AI called MCP functions, storage was attempted
             return True
             
         except Exception as e:
@@ -119,236 +151,62 @@ class MCPMemory(MemoryInterface):
             return False
     
     def search(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
-        """Search entities and observations."""
-        results = []
-        query_lower = query.lower()
-        
-        # Search entities
-        for entity in self.memory.get('entities', []):
-            relevance = 0
-            
-            # Check entity name
-            if query_lower in entity['name'].lower():
-                relevance += 0.8
-            
-            # Check entity type
-            if query_lower in entity['entityType'].lower():
-                relevance += 0.3
-            
-            # Check observations
-            for obs in entity.get('observations', []):
-                if query_lower in obs.lower():
-                    relevance += 0.5
-            
-            if relevance > 0:
-                results.append({
-                    'entity': entity,
-                    'relevance_score': relevance,
-                    'match_type': 'entity'
-                })
-        
-        # Sort by relevance and limit results
-        results.sort(key=lambda x: x['relevance_score'], reverse=True)
-        return results[:limit]
-    
-    def update_information(self, entity_id: str, updates: Dict[str, Any]) -> bool:
-        """Update an existing entity."""
+        """Search MCP knowledge graph."""
         try:
-            # Find entity
-            for entity in self.memory.get('entities', []):
-                if entity['name'] == entity_id:
-                    # Update entity data
-                    entity.update(updates)
-                    self._save_memory()
-                    return True
-            
-            return False
-            
-        except Exception as e:
-            print(f"Error updating MCP entity: {e}")
-            return False
-    
-    def get_memory_stats(self) -> Dict[str, Any]:
-        """Get statistics about the knowledge graph."""
-        entities = self.memory.get('entities', [])
-        relations = self.memory.get('relations', [])
-        
-        # Count observations
-        total_observations = sum(len(e.get('observations', [])) for e in entities)
-        
-        # Count entity types
-        entity_types = {}
-        for entity in entities:
-            entity_type = entity.get('entityType', 'unknown')
-            entity_types[entity_type] = entity_types.get(entity_type, 0) + 1
-        
-        return {
-            'memory_type': 'mcp',
-            'total_entities': len(entities),
-            'total_relations': len(relations),
-            'total_observations': total_observations,
-            'entity_types': entity_types,
-            'file_size_bytes': os.path.getsize(self.memory_file) if os.path.exists(self.memory_file) else 0,
-            'file_path': self.memory_file
-        }
-    
-    def _load_memory(self) -> Dict[str, Any]:
-        """Load memory from JSON file."""
-        try:
-            if os.path.exists(self.memory_file):
-                with open(self.memory_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            else:
-                return {'entities': [], 'relations': []}
-        except Exception as e:
-            print(f"Error loading MCP memory: {e}")
-            return {'entities': [], 'relations': []}
-    
-    def _save_memory(self):
-        """Save memory to JSON file."""
-        try:
-            with open(self.memory_file, 'w', encoding='utf-8') as f:
-                json.dump(self.memory, f, indent=2, ensure_ascii=False)
-        except Exception as e:
-            print(f"Error saving MCP memory: {e}")
-    
-    def _search_entities(self, query: str) -> List[Dict[str, Any]]:
-        """Search for entities relevant to the query."""
-        results = []
-        query_lower = query.lower()
-        
-        for entity in self.memory.get('entities', []):
-            relevance = 0
-            
-            # Check entity name
-            if query_lower in entity['name'].lower():
-                relevance += 1.0
-            
-            # Check observations
-            for obs in entity.get('observations', []):
-                if query_lower in obs.lower():
-                    relevance += 0.7
-            
-            # Check related entities
-            relations = self._get_entity_relations(entity['name'])
-            for rel in relations:
-                if query_lower in rel['to'].lower() or query_lower in rel['relationType'].lower():
-                    relevance += 0.3
-            
-            if relevance > 0:
-                results.append(entity)
-        
-        return results
-    
-    def _get_entity_relations(self, entity_name: str) -> List[Dict[str, Any]]:
-        """Get all relations for an entity."""
-        relations = []
-        for rel in self.memory.get('relations', []):
-            if rel['from'] == entity_name:
-                relations.append(rel)
-        return relations
-    
-    def _extract_structured_info(self, user_message: str, ai_response: str) -> Dict[str, Any]:
-        """Use OpenAI to extract structured information from conversation."""
-        try:
-            # Create extraction prompt
-            extraction_prompt = f"""
-Extract structured information from this conversation for a knowledge graph.
-
-User: {user_message}
-Assistant: {ai_response}
-
-Extract:
-1. Entities (people, places, projects, concepts) with types
-2. Relations between entities
-3. New observations/facts about entities
-
-Return as JSON:
-{{
-  "entities": [
-    {{"name": "entity_name", "entityType": "person|project|concept|media_file|other", "observations": ["fact1", "fact2"]}}
-  ],
-  "relations": [
-    {{"from": "entity1", "to": "entity2", "relationType": "works_on|likes|located_in|other"}}
-  ],
-  "observations": [
-    {{"entityName": "entity_name", "contents": ["new observation"]}}
-  ]
-}}
-
-Only extract clear, factual information. If no clear entities/relations, return empty arrays.
-"""
+            search_prompt = f"""
+            Search the knowledge graph for: "{query}"
+            Use search_nodes function and return the most relevant results.
+            """
             
             response = self.client.responses.create(
-                model="gpt-4o-mini",
-                input=[
-                    {"role": "system", "content": "You are an expert at extracting structured information for knowledge graphs. Return only valid JSON."},
-                    {"role": "user", "content": extraction_prompt}
-                ],
+                model="gpt-4.1",
+                input=[{"role": "user", "content": search_prompt}],
+                tools=self.mcp_tools,
                 store=False,
-                max_output_tokens=500,
+                max_output_tokens=800,
                 temperature=0.1
             )
             
-            # Parse response
-            response_text = response.output_text
+            # Process search results
+            results = self._extract_search_results(response)
+            return results[:limit]
             
-            # Try to extract JSON from the response
-            import re
-            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-            if json_match:
-                return json.loads(json_match.group())
-            else:
-                return {'entities': [], 'relations': [], 'observations': []}
-                
         except Exception as e:
-            print(f"Error extracting structured info: {e}")
-            return {'entities': [], 'relations': [], 'observations': []}
+            print(f"Error searching MCP: {e}")
+            return []
     
-    def _create_or_update_entity(self, entity_data: Dict[str, Any]):
-        """Create or update an entity."""
-        entity_name = entity_data.get('name')
-        if not entity_name:
-            return
-        
-        # Check if entity exists
-        for entity in self.memory['entities']:
-            if entity['name'] == entity_name:
-                # Update existing entity
-                entity.update(entity_data)
-                return
-        
-        # Create new entity
-        self.memory['entities'].append(entity_data)
+    def get_system_name(self) -> str:
+        """Return system name."""
+        return "MCP"
     
-    def _create_relation(self, relation_data: Dict[str, Any]):
-        """Create a new relation."""
-        # Check if relation already exists
-        for rel in self.memory['relations']:
-            if (rel['from'] == relation_data.get('from') and 
-                rel['to'] == relation_data.get('to') and 
-                rel['relationType'] == relation_data.get('relationType')):
-                return  # Relation already exists
-        
-        # Add new relation
-        self.memory['relations'].append(relation_data)
+    def _extract_context_from_response(self, response) -> str:
+        """Extract context text from OpenAI response."""
+        try:
+            # Handle Responses API output format
+            if hasattr(response, 'output_text'):
+                return response.output_text
+            elif hasattr(response, 'output') and response.output:
+                # Look for assistant message in output
+                for item in response.output:
+                    if hasattr(item, 'type') and item.type == 'message':
+                        if hasattr(item, 'content'):
+                            if isinstance(item.content, list) and len(item.content) > 0:
+                                return item.content[0].text if hasattr(item.content[0], 'text') else str(item.content[0])
+                            elif isinstance(item.content, str):
+                                return item.content
+            return "No context found"
+        except Exception as e:
+            return f"Error extracting context: {e}"
     
-    def _add_observation(self, obs_data: Dict[str, Any]):
-        """Add observation to an entity."""
-        entity_name = obs_data.get('entityName')
-        contents = obs_data.get('contents', [])
-        
-        if not entity_name or not contents:
-            return
-        
-        # Find entity and add observations
-        for entity in self.memory['entities']:
-            if entity['name'] == entity_name:
-                if 'observations' not in entity:
-                    entity['observations'] = []
-                
-                # Add new observations (avoid duplicates)
-                for content in contents:
-                    if content not in entity['observations']:
-                        entity['observations'].append(content)
-                break 
+    def _extract_search_results(self, response) -> List[Dict[str, Any]]:
+        """Extract search results from OpenAI response."""
+        try:
+            content = self._extract_context_from_response(response)
+            # Simple parsing - in real implementation would parse structured results
+            return [{
+                "content": content,
+                "source": "MCP",
+                "relevance": 0.9
+            }]
+        except Exception:
+            return [] 

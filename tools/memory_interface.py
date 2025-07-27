@@ -2,8 +2,7 @@
 """
 Memory Interface for Luzia
 
-Abstract interface that both scratchpad and MCP memory systems implement.
-Provides a unified API for context retrieval and information storage.
+Abstract interface for different memory systems (scratchpad, MCP, etc.)
 """
 
 from abc import ABC, abstractmethod
@@ -22,57 +21,47 @@ class MemoryInterface(ABC):
             query: The user's question or topic
             
         Returns:
-            Dict containing relevant context, media recommendations, etc.
+            Dict with context information in standard format:
+            {
+                "status": "success|error",
+                "relevant_context": "extracted relevant information",
+                "media_files_needed": true/false,
+                "recommended_media": ["list", "of", "file", "paths"],
+                "reasoning": "explanation of context selection"
+            }
         """
         pass
     
     @abstractmethod
-    def store_information(self, data: Dict[str, Any]) -> bool:
+    def store_information(self, query: str, response: str, context: Dict[str, Any] = None) -> bool:
         """
-        Store new information in the memory system.
+        Store new information from a conversation.
         
         Args:
-            data: Information to store (conversation context, user facts, etc.)
+            query: The user's query
+            response: The AI's response
+            context: Additional context from the conversation
             
         Returns:
-            True if successful, False otherwise
+            bool: True if storage was successful
         """
         pass
     
     @abstractmethod
     def search(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
-        Search for specific information in the memory system.
+        Search for specific information.
         
         Args:
             query: Search query
             limit: Maximum number of results
             
         Returns:
-            List of matching entries
+            List of matching items
         """
         pass
     
     @abstractmethod
-    def update_information(self, entity_id: str, updates: Dict[str, Any]) -> bool:
-        """
-        Update existing information in the memory system.
-        
-        Args:
-            entity_id: Identifier for the information to update
-            updates: New information to apply
-            
-        Returns:
-            True if successful, False otherwise
-        """
-        pass
-    
-    @abstractmethod
-    def get_memory_stats(self) -> Dict[str, Any]:
-        """
-        Get statistics about the memory system.
-        
-        Returns:
-            Dict with stats like entity count, storage size, etc.
-        """
+    def get_system_name(self) -> str:
+        """Return the name of this memory system."""
         pass 

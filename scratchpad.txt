@@ -19,6 +19,9 @@
 ## USER FACTS
 
 
+
+Known Programming Languages: Python, JavaScript
+
 ### Personal Information
 - Full Name: Alvaro Martinez-Higes
 - Age: 37 
