@@ -165,4 +165,4 @@ __all__ = [
 ]
 
 # Function schemas for OpenAI function calling - now generated from ToolManager
-FUNCTION_SCHEMAS = ToolManager().get_function_schemas() 
+FUNCTION_SCHEMAS = ToolManager().get_function_schemas("responses") 

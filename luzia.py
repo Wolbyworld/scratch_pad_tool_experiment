@@ -73,31 +73,84 @@ When you have analyzed media files, use that information directly in your respon
         if len(messages) == 1:
             return messages[0]["content"]
         else:
-            return [{"role": msg["role"], "content": msg["content"]} for msg in messages]
+            converted_messages = []
+            for msg in messages:
+                if msg["role"] == "tool":
+                    # Convert tool results to function_call_output format for Responses API
+                    converted_messages.append({
+                        "type": "function_call_output",
+                        "call_id": msg.get("tool_call_id", "unknown"),
+                        "output": msg["content"]
+                    })
+                elif msg["role"] == "assistant" and msg.get("tool_calls"):
+                    # Convert assistant messages with tool calls
+                    for tool_call in msg["tool_calls"]:
+                        converted_messages.append({
+                            "type": "function_call",
+                            "call_id": tool_call["id"],
+                            "name": tool_call["function"]["name"],
+                            "arguments": tool_call["function"]["arguments"]
+                        })
+                    # Add assistant content if any
+                    if msg.get("content"):
+                        converted_messages.append({
+                            "role": "assistant",
+                            "content": [{"type": "input_text", "text": msg["content"]}]
+                        })
+                else:
+                    # Regular message conversion
+                    content = msg["content"]
+                    if isinstance(content, str):
+                        content = [{"type": "input_text", "text": content}]
+                    converted_messages.append({
+                        "role": msg["role"],
+                        "content": content
+                    })
+            return converted_messages
     
     def _handle_responses_api_output(self, response):
         """Extract function calls and assistant message from Responses API output"""
         function_calls = []
         assistant_message = None
         
-        for item in response.output:
-            if item.type == 'function_call':
-                # Convert Responses API function call to Chat Completions format
-                converted_call = type('obj', (object,), {
-                    'id': item.call_id,
-                    'function': type('func', (object,), {
-                        'name': item.name,
-                        'arguments': item.arguments
-                    })
-                })
-                function_calls.append(converted_call)
-            elif item.type == 'message' and item.role == 'assistant':
-                # Extract assistant message content
-                if item.content and len(item.content) > 0:
-                    assistant_message = type('msg', (object,), {
-                        'content': item.content[0].text if hasattr(item.content[0], 'text') else str(item.content[0]),
-                        'tool_calls': function_calls if function_calls else None
-                    })
+        # Handle different response structures from Responses API
+        if hasattr(response, 'output') and response.output:
+            for item in response.output:
+                if hasattr(item, 'type'):
+                    if item.type == 'function_call':
+                        # Convert Responses API function call to Chat Completions format
+                        converted_call = type('obj', (object,), {
+                            'id': getattr(item, 'call_id', getattr(item, 'id', 'unknown')),
+                            'function': type('func', (object,), {
+                                'name': getattr(item, 'name', ''),
+                                'arguments': getattr(item, 'arguments', '{}')
+                            })
+                        })
+                        function_calls.append(converted_call)
+                    elif item.type == 'message' and hasattr(item, 'role') and item.role == 'assistant':
+                        # Extract assistant message content
+                        content = ''
+                        if hasattr(item, 'content') and item.content:
+                            if isinstance(item.content, list) and len(item.content) > 0:
+                                first_content = item.content[0]
+                                if hasattr(first_content, 'text'):
+                                    content = first_content.text
+                                else:
+                                    content = str(first_content)
+                            elif isinstance(item.content, str):
+                                content = item.content
+                        
+                        assistant_message = type('msg', (object,), {
+                            'content': content,
+                            'tool_calls': function_calls if function_calls else None
+                        })
+        
+        # Fallback: if no structured output found, try to get text from output_text
+        if not assistant_message and hasattr(response, 'output_text'):
+            assistant_message = type('msg', (object,), {
+                'content': response.output_text,
+                'tool_calls': function_calls if function_calls else None
+            })
         
         return assistant_message, function_calls
 
@@ -245,7 +298,7 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
                 tools=FUNCTION_SCHEMAS,
                 tool_choice={
                     "type": "function",
-                    "function": {"name": "get_scratch_pad_context"}
+                    "name": "get_scratch_pad_context"
                 },  # Force calling the required scratch pad context function
                 store=False,  # CRITICAL: No stateful storage
                 max_output_tokens=1000,

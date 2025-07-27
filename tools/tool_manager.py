@@ -74,65 +74,75 @@ class ToolManager:
                 "function_name": function_name
             }
     
-    def get_function_schemas(self) -> list:
+    def get_function_schemas(self, api_format: str = "responses") -> list:
         """Get the function schemas for OpenAI function calling.
         
+        Args:
+            api_format: Either "responses" for Responses API or "chat" for Chat Completions API
+            
         Returns:
-            List of function schemas
+            List of function schemas in the specified format
         """
-        return [
+        base_schemas = [
             {
                 "type": "function",
-                "function": {
-                    "name": "get_scratch_pad_context",
-                    "description": "Get relevant context from the user's personal scratch pad document. Use for non-mathematical queries or when personal context is specifically needed. For mathematical queries, use solve_math instead.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "query": {
-                                "type": "string",
-                                "description": "The user's question or the topic they're asking about"
-                            }
-                        },
-                        "required": ["query"]
-                    }
-                }
-            },
-            {
-                "type": "function", 
-                "function": {
-                    "name": "analyze_media_file",
-                    "description": "Analyze a media file (image or PDF) to provide detailed visual description. Call this function when the scratch pad context indicates that media analysis would be helpful for answering the user's question.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "file_path": {
-                                "type": "string",
-                                "description": "Path to the media file to analyze (e.g., 'media/gorilla.png')"
-                            }
-                        },
-                        "required": ["file_path"]
-                    }
+                "name": "get_scratch_pad_context",
+                "description": "Get relevant context from the user's personal scratch pad document. Use for non-mathematical queries or when personal context is specifically needed. For mathematical queries, use solve_math instead.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The user's question or the topic they're asking about"
+                        }
+                    },
+                    "required": ["query"]
                 }
             },
             {
                 "type": "function",
-                "function": {
-                    "name": "solve_math",
-                    "description": "Handle ALL mathematical queries including equations, derivatives, integrals, simplification, factoring, and complex arithmetic. This function intelligently routes to the appropriate mathematical operation and only fetches user context when needed for personalization. Use this for ANY mathematical request.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "query": {
-                                "type": "string",
-                                "description": "The complete mathematical question or problem to solve. Examples: 'solve 2x+3=7', 'derivative of x^2', 'simplify sin^2+cos^2', 'factor x^2+2x+1', '222222+555555*10000', 'integrate x^2 from 0 to 1'. Include any context like 'solve this like before' for personalized responses."
-                            }
-                        },
-                        "required": ["query"]
-                    }
+                "name": "analyze_media_file",
+                "description": "Analyze a media file (image or PDF) to provide detailed visual description. Call this function when the scratch pad context indicates that media analysis would be helpful for answering the user's question.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Path to the media file to analyze (e.g., 'media/gorilla.png')"
+                        }
+                    },
+                    "required": ["file_path"]
+                }
+            },
+            {
+                "type": "function",
+                "name": "solve_math",
+                "description": "Handle ALL mathematical queries including equations, derivatives, integrals, simplification, factoring, and complex arithmetic. This function intelligently routes to the appropriate mathematical operation and only fetches user context when needed for personalization. Use this for ANY mathematical request.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The complete mathematical question or problem to solve. Examples: 'solve 2x+3=7', 'derivative of x^2', 'simplify sin^2+cos^2', 'factor x^2+2x+1', '222222+555555*10000', 'integrate x^2 from 0 to 1'. Include any context like 'solve this like before' for personalized responses."
+                        }
+                    },
+                    "required": ["query"]
                 }
             }
         ]
+        
+        # Convert to Chat Completions format if requested
+        if api_format == "chat":
+            return [{
+                "type": "function",
+                "function": {
+                    "name": schema["name"],
+                    "description": schema["description"],
+                    "parameters": schema["parameters"]
+                }
+            } for schema in base_schemas]
+        
+        return base_schemas
     
     # Convenience methods for direct access to individual tools
     @property
