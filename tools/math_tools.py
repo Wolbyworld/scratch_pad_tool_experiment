@@ -33,10 +33,18 @@ class MathTools:
     def _parse_expression_safely(self, expression: str) -> sympy.Basic:
         """Safely parse a mathematical expression using SymPy with controlled transformations."""
         try:
-            # Clean the expression - remove any potentially dangerous characters
-            cleaned_expr = re.sub(r'[^a-zA-Z0-9+\-*/()^=\s\.,_]', '', expression)
+            # Check for obviously invalid patterns first
+            if not expression or not expression.strip():
+                raise ValueError("Empty expression")
             
-            # Handle common mathematical notations that users naturally write
+            # Check for invalid characters that shouldn't be in mathematical expressions
+            invalid_chars = re.findall(r'[^a-zA-Z0-9+\-*/()^=\s\.,_]', expression)
+            if invalid_chars:
+                raise ValueError(f"Invalid characters found: {set(invalid_chars)}")
+            
+            # Clean the expression for common mathematical notations
+            cleaned_expr = expression.strip()
+            
             # Convert x^2 to x**2 (exponentiation)
             cleaned_expr = re.sub(r'\^', '**', cleaned_expr)
             
@@ -415,7 +423,9 @@ class MathTools:
         
         # Remove common prefixes
         cleaned = re.sub(r'^(solve|find|what is|calculate)\s+', '', query.lower())
-        cleaned = re.sub(r'^(the\s+)?(equation|expression)\s+', '', cleaned)
+        cleaned = re.sub(r'^(for|the\s+)?(equation|expression)\s+', '', cleaned)
+        # Handle "solve for x = ..." pattern specifically
+        cleaned = re.sub(r'^for\s+', '', cleaned)
         
         # Look for equation patterns
         equation_match = re.search(r'([0-9a-zA-Z+\-*/^=().\s]+)', cleaned)

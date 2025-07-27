@@ -120,12 +120,14 @@ class MediaTools:
                         "role": "user",
                         "content": [
                             {
-                                "type": "input_text",
+                                "type": "text",
                                 "text": "Analyze this image in detail. Describe what you see, including objects, people, text, colors, composition, and any other relevant details that would be helpful for someone asking about this image."
                             },
                             {
-                                "type": "input_image",
-                                "image_url": f"data:{mime_type};base64,{base64_image}"
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:{mime_type};base64,{base64_image}"
+                                }
                             }
                         ]
                     }

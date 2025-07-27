@@ -87,8 +87,11 @@ SCRATCH PAD CONTENT:
 {scratchpad_content}
 
 Please follow the system prompt rules to determine if media files are needed and provide your response in JSON format:
+
+IMPORTANT: For mathematical queries, use exactly: "Mathematical calculation required - specific tools needed for: [brief description]"
+
 {{
-    "relevant_context": "extracted relevant information",
+    "relevant_context": "extracted relevant information OR for math queries: 'Mathematical calculation required - specific tools needed for: [description]'",
     "media_files_needed": true/false,
     "recommended_media": ["list", "of", "file", "paths"],
     "reasoning": "why these media files would be helpful (or why not needed)"

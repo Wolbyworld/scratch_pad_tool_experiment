@@ -19,8 +19,11 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from colorama import init, Fore, Back, Style
 
-from tools import ScratchPadTools, FUNCTION_SCHEMAS
+from tools import ScratchPadTools, ToolManager
 from update_manager import apply_conversation_updates
+
+# Get function schemas in Responses API format for this application
+FUNCTION_SCHEMAS_RESPONSES = ToolManager().get_function_schemas("responses")
 
 # Initialize colorama for cross-platform colored output
 init(autoreset=True)
@@ -95,16 +98,13 @@ When you have analyzed media files, use that information directly in your respon
                     if msg.get("content"):
                         converted_messages.append({
                             "role": "assistant",
-                            "content": [{"type": "input_text", "text": msg["content"]}]
+                            "content": msg["content"]  # Simple string format
                         })
                 else:
-                    # Regular message conversion
-                    content = msg["content"]
-                    if isinstance(content, str):
-                        content = [{"type": "input_text", "text": content}]
+                    # Regular message conversion - use simple string format for text
                     converted_messages.append({
                         "role": msg["role"],
-                        "content": content
+                        "content": msg["content"]  # Keep as simple string
                     })
             return converted_messages
     
@@ -263,7 +263,7 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
 {json.dumps(self.conversation_history, indent=2, ensure_ascii=False)}
 
 === FUNCTION SCHEMAS AVAILABLE ===
-{json.dumps(FUNCTION_SCHEMAS, indent=2, ensure_ascii=False)}
+{json.dumps(FUNCTION_SCHEMAS_RESPONSES, indent=2, ensure_ascii=False)}
 
 === FULL MESSAGES ARRAY ===
 {json.dumps(messages, indent=2, ensure_ascii=False)}
@@ -295,7 +295,7 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
             response = self.client.responses.create(
                 model="gpt-4.1",  # Using GPT-4.1 as specified
                 input=self._convert_messages_to_responses_input(messages),
-                tools=FUNCTION_SCHEMAS,
+                tools=FUNCTION_SCHEMAS_RESPONSES,
                 tool_choice={
                     "type": "function",
                     "name": "get_scratch_pad_context"
@@ -381,7 +381,7 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
                 final_response = self.client.responses.create(
                     model="gpt-4.1",
                     input=self._convert_messages_to_responses_input([{"role": "system", "content": self.system_prompt}] + self.conversation_history),
-                    tools=FUNCTION_SCHEMAS,  # ✅ CRITICAL FIX: Enable mathematical functions
+                    tools=FUNCTION_SCHEMAS_RESPONSES,  # ✅ CRITICAL FIX: Enable mathematical functions
                     store=False,  # CRITICAL: No stateful storage
                     max_output_tokens=1000,
                     temperature=0.7
