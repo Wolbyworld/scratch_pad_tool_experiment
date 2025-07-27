@@ -359,11 +359,20 @@ MEDIA ANALYSIS NEEDED: {context_result.get('media_files_needed', False)}
                         if self.show_trace:
                             print(f"{Fore.RED}❌ Error analyzing media file {media_file}: {e}{Style.RESET_ALL}")
             
+            # Get appropriate function schemas based on memory system
+            if self.memory_type == 'mcp':
+                # For MCP, exclude memory functions since we handle context directly
+                available_tools = [tool for tool in FUNCTION_SCHEMAS_RESPONSES 
+                                 if tool.get('name') not in ['get_scratch_pad_context']]
+            else:
+                # For scratchpad, include all tools
+                available_tools = FUNCTION_SCHEMAS_RESPONSES
+            
             # Get final response with all context and media analysis
             final_response = self.client.responses.create(
                 model="gpt-4.1",
                 input=self._convert_messages_to_responses_input(messages),
-                tools=FUNCTION_SCHEMAS_RESPONSES,  # Enable mathematical functions
+                tools=available_tools,  # Dynamic tool selection based on memory system
                 store=False,  # No stateful storage
                 max_output_tokens=1000,
                 temperature=0.7

@@ -14,7 +14,61 @@
         "This is a quadratic equation.",
         "The equation can be solved to find the values of x."
       ]
+    },
+    {
+      "name": "Sarah",
+      "entityType": "person",
+      "observations": [
+        "loves Python programming",
+        "is building an AI chatbot"
+      ]
+    },
+    {
+      "name": "Python programming",
+      "entityType": "concept",
+      "observations": [
+        "great choice for building AI chatbots",
+        "super flexible and powerful"
+      ]
+    },
+    {
+      "name": "AI chatbot",
+      "entityType": "project",
+      "observations": []
+    },
+    {
+      "name": "User's wife",
+      "entityType": "person",
+      "observations": []
+    },
+    {
+      "name": "User's Wife",
+      "entityType": "person",
+      "observations": []
+    },
+    {
+      "name": "User",
+      "entityType": "person",
+      "observations": []
+    },
+    {
+      "name": "Assistant",
+      "entityType": "concept",
+      "observations": [
+        "does not have personal info about User or User's wife"
+      ]
     }
   ],
-  "relations": []
+  "relations": [
+    {
+      "from": "Sarah",
+      "to": "Python programming",
+      "relationType": "likes"
+    },
+    {
+      "from": "Sarah",
+      "to": "AI chatbot",
+      "relationType": "works_on"
+    }
+  ]
 }
