@@ -28,7 +28,10 @@
       "entityType": "concept",
       "observations": [
         "great choice for building AI chatbots",
-        "super flexible and powerful"
+        "super flexible and powerful",
+        "is flexible",
+        "is suitable for building projects",
+        "is suitable for AI projects"
       ]
     },
     {
@@ -49,7 +52,10 @@
     {
       "name": "User",
       "entityType": "person",
-      "observations": []
+      "observations": [
+        "Has not provided their name to the AI",
+        "loves Python programming"
+      ]
     },
     {
       "name": "Assistant",
@@ -57,10 +63,10 @@
       "observations": []
     },
     {
-      "name": "Aloña",
+      "name": "Alo\u00f1a",
       "entityType": "person",
       "observations": [
-        "Aloña is the wife of the user."
+        "Alo\u00f1a is the wife of the user."
       ]
     },
     {
@@ -85,7 +91,7 @@
       ]
     },
     {
-      "name": "√2",
+      "name": "\u221a2",
       "entityType": "concept",
       "observations": []
     },
@@ -143,6 +149,30 @@
         "sin(x) is a trigonometric function.",
         "The integral of sin(x) is -cos(x) + C, where C is the constant of integration."
       ]
+    },
+    {
+      "name": "Alvaro",
+      "entityType": "person",
+      "observations": [
+        "User's name is Alvaro",
+        "Alvaro is the user's name"
+      ]
+    },
+    {
+      "name": "AI",
+      "entityType": "other",
+      "observations": [
+        "Does not know the user's name",
+        "Can remember user's name if provided"
+      ]
+    },
+    {
+      "name": "Carlos",
+      "entityType": "person",
+      "observations": [
+        "loves Python programming",
+        "User's name is Carlos"
+      ]
     }
   ],
   "relations": [
@@ -163,12 +193,12 @@
     },
     {
       "from": "x",
-      "to": "i√2",
+      "to": "i\u221a2",
       "relationType": "solution_to"
     },
     {
       "from": "x",
-      "to": "-i√2",
+      "to": "-i\u221a2",
       "relationType": "solution_to"
     },
     {
@@ -185,6 +215,36 @@
       "from": "x^3 + 2x",
       "to": "derivative",
       "relationType": "is_related_to"
+    },
+    {
+      "from": "User",
+      "to": "AI",
+      "relationType": "asks_name_recognition"
+    },
+    {
+      "from": "AI",
+      "to": "User",
+      "relationType": "requests_name_information"
+    },
+    {
+      "from": "User",
+      "to": "AI",
+      "relationType": "asks for knowledge about their own name"
+    },
+    {
+      "from": "AI",
+      "to": "User",
+      "relationType": "requests user's name"
+    },
+    {
+      "from": "Carlos",
+      "to": "Python programming",
+      "relationType": "likes"
+    },
+    {
+      "from": "User",
+      "to": "Python programming",
+      "relationType": "loves"
     }
   ]
 }

@@ -471,6 +471,17 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
                     function_calls=function_calls_data,
                     tool_responses=tool_responses_data
                 )
+                
+                # Also store information in the selected memory system
+                try:
+                    context_data = {
+                        "tools_called": function_calls_data,
+                        "tool_responses": tool_responses_data
+                    }
+                    self.memory.store_information(user_message, luzia_response, context_data)
+                except Exception as e:
+                    if self.show_trace:
+                        print(f"{Fore.YELLOW}[MEMORY] Memory storage failed: {e}{Style.RESET_ALL}")
             except Exception as e:
                 # KISS: Don't let update failures break the conversation
                 if self.show_trace:
