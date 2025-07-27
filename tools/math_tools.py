@@ -319,18 +319,19 @@ class MathTools:
                 }
             
             # Step 2: Get routing decision from GPT-4.1-mini (using as placeholder for nano)
-            routing_response = self.client.chat.completions.create(
+            routing_response = self.client.responses.create(
                 model="gpt-4o-mini",  # Using mini as placeholder for GPT-4.1-nano
-                messages=[
+                input=[
                     {"role": "system", "content": routing_system_prompt},
                     {"role": "user", "content": f"Query: {query}"}
                 ],
-                max_tokens=100,
+                store=False,  # No stateful storage
+                max_output_tokens=100,
                 temperature=0.1
             )
             
             # Step 3: Parse routing decision
-            routing_json = routing_response.choices[0].message.content.strip()
+            routing_json = routing_response.output_text.strip()
             
             # Clean JSON response (remove any markdown formatting)
             if routing_json.startswith('```'):

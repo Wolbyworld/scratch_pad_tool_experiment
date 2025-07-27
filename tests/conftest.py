@@ -129,17 +129,18 @@ def mock_openai_client():
         mock_scratchpad_openai.return_value = mock_client
         mock_media_openai.return_value = mock_client
         
-        # Default successful response
+        # Default successful response for Responses API
         mock_response = Mock()
-        mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = json.dumps({
+        mock_response.output_text = json.dumps({
             "relevant_context": "Test context extracted",
             "media_files_needed": False,
             "recommended_media": [],
             "reasoning": "No media needed for this query"
         })
+        # Mock output structure for function calls
+        mock_response.output = []
         
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_client.responses.create.return_value = mock_response
         
         yield mock_client
 
@@ -148,11 +149,11 @@ def mock_openai_client():
 def mock_openai_math_routing():
     """Mock OpenAI client specifically for math routing responses."""
     mock_response = Mock()
-    mock_response.choices = [Mock()]
-    mock_response.choices[0].message.content = json.dumps({
+    mock_response.output_text = json.dumps({
         "operation": "solve_equation",
         "needs_context": False
     })
+    mock_response.output = []
     return mock_response
 
 

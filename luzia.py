@@ -68,6 +68,39 @@ Your responses should:
 
 When you have analyzed media files, use that information directly in your response as if you can see/remember the content."""
 
+    def _convert_messages_to_responses_input(self, messages):
+        """Convert messages format from Chat Completions to Responses API input format"""
+        if len(messages) == 1:
+            return messages[0]["content"]
+        else:
+            return [{"role": msg["role"], "content": msg["content"]} for msg in messages]
+    
+    def _handle_responses_api_output(self, response):
+        """Extract function calls and assistant message from Responses API output"""
+        function_calls = []
+        assistant_message = None
+        
+        for item in response.output:
+            if item.type == 'function_call':
+                # Convert Responses API function call to Chat Completions format
+                converted_call = type('obj', (object,), {
+                    'id': item.call_id,
+                    'function': type('func', (object,), {
+                        'name': item.name,
+                        'arguments': item.arguments
+                    })
+                })
+                function_calls.append(converted_call)
+            elif item.type == 'message' and item.role == 'assistant':
+                # Extract assistant message content
+                if item.content and len(item.content) > 0:
+                    assistant_message = type('msg', (object,), {
+                        'content': item.content[0].text if hasattr(item.content[0], 'text') else str(item.content[0]),
+                        'tool_calls': function_calls if function_calls else None
+                    })
+        
+        return assistant_message, function_calls
+
     def _handle_function_calls(self, function_calls) -> str:
         """Execute function calls and return results with traceability."""
         results = []
@@ -206,25 +239,26 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
             self._save_debug_context(messages, user_message)
             
             # Step 1: Always call get_scratch_pad_context first
-            response = self.client.chat.completions.create(
+            response = self.client.responses.create(
                 model="gpt-4.1",  # Using GPT-4.1 as specified
-                messages=messages,
+                input=self._convert_messages_to_responses_input(messages),
                 tools=FUNCTION_SCHEMAS,
                 tool_choice={
                     "type": "function",
                     "function": {"name": "get_scratch_pad_context"}
                 },  # Force calling the required scratch pad context function
-                max_tokens=1000,
+                store=False,  # CRITICAL: No stateful storage
+                max_output_tokens=1000,
                 temperature=0.7
             )
             
-            assistant_message = response.choices[0].message
+            assistant_message, function_calls = self._handle_responses_api_output(response)
             scratch_pad_results = None
             
             # Handle the scratch pad function call
-            if assistant_message.tool_calls:
+            if function_calls:
                 # Execute the scratch pad function call
-                function_results = self._handle_function_calls(assistant_message.tool_calls)
+                function_results = self._handle_function_calls(function_calls)
                 scratch_pad_results = function_results
                 
                 # Add function call message to history
@@ -239,12 +273,12 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
                                 "name": call.function.name,
                                 "arguments": call.function.arguments
                             }
-                        } for call in assistant_message.tool_calls
+                        } for call in function_calls
                     ]
                 })
                 
                 # Add function results to history
-                for i, call in enumerate(assistant_message.tool_calls):
+                for i, call in enumerate(function_calls):
                     self.conversation_history.append({
                         "role": "tool",
                         "tool_call_id": call.id,
@@ -291,23 +325,24 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
                             print(f"{Fore.RED}❌ Error parsing media recommendations: {e}{Style.RESET_ALL}")
                 
                 # Get final response with all function results (INCLUDING mathematical functions)
-                final_response = self.client.chat.completions.create(
+                final_response = self.client.responses.create(
                     model="gpt-4.1",
-                    messages=[{"role": "system", "content": self.system_prompt}] + self.conversation_history,
+                    input=self._convert_messages_to_responses_input([{"role": "system", "content": self.system_prompt}] + self.conversation_history),
                     tools=FUNCTION_SCHEMAS,  # ✅ CRITICAL FIX: Enable mathematical functions
-                    max_tokens=1000,
+                    store=False,  # CRITICAL: No stateful storage
+                    max_output_tokens=1000,
                     temperature=0.7
                 )
                 
-                final_message = final_response.choices[0].message
+                final_message, final_function_calls = self._handle_responses_api_output(final_response)
                 
                 # Handle any mathematical function calls in the final response
-                if final_message.tool_calls:
+                if final_function_calls:
                     if self.show_trace:
-                        print(f"{Fore.CYAN}🧮 Mathematical functions called: {[call.function.name for call in final_message.tool_calls]}{Style.RESET_ALL}")
+                        print(f"{Fore.CYAN}🧮 Mathematical functions called: {[call.function.name for call in final_function_calls]}{Style.RESET_ALL}")
                     
                     # Execute mathematical function calls
-                    math_function_results = self._handle_function_calls(final_message.tool_calls)
+                    math_function_results = self._handle_function_calls(final_function_calls)
                     
                     # Add function call to conversation history
                     self.conversation_history.append({
@@ -321,12 +356,12 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
                                     "name": call.function.name,
                                     "arguments": call.function.arguments
                                 }
-                            } for call in final_message.tool_calls
+                            } for call in final_function_calls
                         ]
                     })
                     
                     # Add function results to conversation history
-                    for i, call in enumerate(final_message.tool_calls):
+                    for i, call in enumerate(final_function_calls):
                         result_line = math_function_results.split("\n")[i] if i < len(math_function_results.split("\n")) else ""
                         self.conversation_history.append({
                             "role": "tool",
@@ -357,8 +392,8 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
                 function_calls_data = []
                 tool_responses_data = []
                 
-                if assistant_message.tool_calls:
-                    for call in assistant_message.tool_calls:
+                if function_calls:
+                    for call in function_calls:
                         function_calls_data.append({
                             "name": call.function.name,
                             "arguments": call.function.arguments

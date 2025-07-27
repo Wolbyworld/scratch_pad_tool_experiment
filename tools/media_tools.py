@@ -113,30 +113,29 @@ class MediaTools:
             }.get(file_ext, 'image/png')
             
             # Analyze image with GPT-4o-mini
-            response = self.client.chat.completions.create(
+            response = self.client.responses.create(
                 model="gpt-4o-mini",
-                messages=[
+                input=[
                     {
                         "role": "user",
                         "content": [
                             {
-                                "type": "text",
+                                "type": "input_text",
                                 "text": "Analyze this image in detail. Describe what you see, including objects, people, text, colors, composition, and any other relevant details that would be helpful for someone asking about this image."
                             },
                             {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:{mime_type};base64,{base64_image}"
-                                }
+                                "type": "input_image",
+                                "image_url": f"data:{mime_type};base64,{base64_image}"
                             }
                         ]
                     }
                 ],
-                max_tokens=1000,
+                store=False,  # No stateful storage
+                max_output_tokens=1000,
                 temperature=0.3
             )
             
-            analysis = response.choices[0].message.content
+            analysis = response.output_text
             
             return {
                 "status": "success",
