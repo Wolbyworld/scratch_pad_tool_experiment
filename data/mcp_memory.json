@@ -1,0 +1,20 @@
+{
+  "entities": [
+    {
+      "name": "Mathematics",
+      "entityType": "concept",
+      "observations": [
+        "2+2 equals 4"
+      ]
+    },
+    {
+      "name": "x^2 - 4",
+      "entityType": "concept",
+      "observations": [
+        "This is a quadratic equation.",
+        "The equation can be solved to find the values of x."
+      ]
+    }
+  ],
+  "relations": []
+}

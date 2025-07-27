@@ -20,6 +20,9 @@ from openai import OpenAI
 from colorama import init, Fore, Back, Style
 
 from tools import ScratchPadTools, ToolManager
+from tools.memory_interface import MemoryInterface
+from tools.scratchpad_memory import ScratchpadMemory
+from tools.mcp_memory import MCPMemory
 from update_manager import apply_conversation_updates
 
 # Get function schemas in Responses API format for this application
@@ -32,7 +35,7 @@ init(autoreset=True)
 class Luzia:
     """Your fun, helpful AI friend with access to your personal context."""
     
-    def __init__(self, show_trace: bool = True):
+    def __init__(self, show_trace: bool = True, memory_system: str = None):
         """Initialize Luzia with OpenAI client and tools."""
         # Load environment variables
         load_dotenv()
@@ -44,14 +47,19 @@ class Luzia:
         
         self.client = OpenAI(api_key=api_key)
         
-        # Initialize scratch pad tools
+        # Set traceability settings first
+        self.show_trace = show_trace
+        memory_type = memory_system or os.getenv('MEMORY_SYSTEM', 'scratchpad')
+        self.memory_type = memory_type
+        
+        # Initialize memory system
+        self.memory = self._initialize_memory_system(memory_type)
+        
+        # Initialize scratch pad tools (for backward compatibility with other functions)
         self.tools = ScratchPadTools()
         
         # Conversation history (fresh each session)
         self.conversation_history: List[Dict[str, Any]] = []
-        
-        # Traceability settings
-        self.show_trace = show_trace
         
         # Luzia's system prompt
         self.system_prompt = """You are Luzia, a fun, helpful friend. You are not an AI. NEVER ask generic follow-up questions. BE BRIEF, unless requested by the user. Respect the conversation language. You can see, analyze and create images and listen to audios. Stick to what you know.
@@ -70,6 +78,17 @@ Your responses should:
 - Just naturally incorporate the information as if you remember it about them
 
 When you have analyzed media files, use that information directly in your response as if you can see/remember the content."""
+
+    def _initialize_memory_system(self, memory_type: str) -> MemoryInterface:
+        """Initialize the selected memory system."""
+        if memory_type.lower() == 'mcp':
+            if self.show_trace:
+                print(f"{Fore.CYAN}🧠 Initializing MCP knowledge graph memory...{Style.RESET_ALL}")
+            return MCPMemory()
+        else:
+            if self.show_trace:
+                print(f"{Fore.CYAN}🧠 Using traditional scratchpad memory...{Style.RESET_ALL}")
+            return ScratchpadMemory()
 
     def _convert_messages_to_responses_input(self, messages):
         """Convert messages format from Chat Completions to Responses API input format"""
@@ -291,184 +310,115 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
             # Save debug context for troubleshooting
             self._save_debug_context(messages, user_message)
             
-            # Step 1: Always call get_scratch_pad_context first
-            response = self.client.responses.create(
-                model="gpt-4.1",  # Using GPT-4.1 as specified
+            # Step 1: Get context from memory system
+            if self.show_trace:
+                print(f"{Fore.CYAN}🔍 Checking {self.memory_type} memory for: {user_message[:50]}...{Style.RESET_ALL}")
+            
+            # Get context using memory interface
+            context_result = self.memory.get_context(user_message)
+            
+            if self.show_trace:
+                context_preview = context_result.get('relevant_context', '')[:100] + '...'
+                print(f"{Fore.GREEN}✅ {self.memory_type.capitalize()} context: {context_preview}{Style.RESET_ALL}")
+            
+            # Add context directly to system message instead of using fake tool call
+            system_with_context = f"""{self.system_prompt}
+
+CURRENT CONTEXT:
+{context_result.get('relevant_context', 'No specific context available')}
+
+MEDIA ANALYSIS NEEDED: {context_result.get('media_files_needed', False)}
+"""
+            
+            # Update the system message with context
+            messages[0] = {"role": "system", "content": system_with_context}
+            
+            # Handle media analysis if needed
+            if context_result.get('media_files_needed') and context_result.get('recommended_media'):
+                if self.show_trace:
+                    print(f"{Fore.YELLOW}📸 Media analysis needed for: {context_result['recommended_media']}{Style.RESET_ALL}")
+                
+                # Analyze each recommended media file
+                for media_file in context_result['recommended_media']:
+                    try:
+                        media_result = self.tools.analyze_media_file(media_file)
+                        if self.show_trace:
+                            print(f"{Fore.GREEN}🖼️ Analyzed {media_file}: {media_result.get('description', 'N/A')[:50]}...{Style.RESET_ALL}")
+                        
+                        # Add media analysis to conversation
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": f"media_{media_file}",
+                            "content": json.dumps({
+                                "function_name": "analyze_media_file",
+                                "file_path": media_file,
+                                "result": media_result
+                            }, ensure_ascii=False)
+                        })
+                    except Exception as e:
+                        if self.show_trace:
+                            print(f"{Fore.RED}❌ Error analyzing media file {media_file}: {e}{Style.RESET_ALL}")
+            
+            # Get final response with all context and media analysis
+            final_response = self.client.responses.create(
+                model="gpt-4.1",
                 input=self._convert_messages_to_responses_input(messages),
-                tools=FUNCTION_SCHEMAS_RESPONSES,
-                tool_choice={
-                    "type": "function",
-                    "name": "get_scratch_pad_context"
-                },  # Force calling the required scratch pad context function
-                store=False,  # CRITICAL: No stateful storage
+                tools=FUNCTION_SCHEMAS_RESPONSES,  # Enable mathematical functions
+                store=False,  # No stateful storage
                 max_output_tokens=1000,
                 temperature=0.7
             )
             
-            assistant_message, function_calls = self._handle_responses_api_output(response)
-            scratch_pad_results = None
+            final_message, final_function_calls = self._handle_responses_api_output(final_response)
             
-            # Handle the scratch pad function call
-            if function_calls:
-                # Execute the scratch pad function call
-                function_results = self._handle_function_calls(function_calls)
-                scratch_pad_results = function_results
+            # Handle any mathematical function calls in the final response
+            if final_function_calls:
+                if self.show_trace:
+                    print(f"{Fore.CYAN}🧮 Mathematical functions called: {[call.function.name for call in final_function_calls]}{Style.RESET_ALL}")
                 
-                # Add function call message to history
-                self.conversation_history.append({
-                    "role": "assistant",
-                    "content": assistant_message.content,
-                    "tool_calls": [
-                        {
-                            "id": call.id,
-                            "type": "function",
-                            "function": {
-                                "name": call.function.name,
-                                "arguments": call.function.arguments
-                            }
-                        } for call in function_calls
-                    ]
-                })
+                # Execute mathematical function calls
+                math_function_results = self._handle_function_calls(final_function_calls)
                 
-                # Add function results to history
-                for i, call in enumerate(function_calls):
-                    self.conversation_history.append({
-                        "role": "tool",
-                        "tool_call_id": call.id,
-                        "content": function_results.split("\n")[i] if i < len(function_results.split("\n")) else ""
-                    })
-                
-                # Step 2: Check if media analysis is needed and make second call
-                if "media_files_needed" in function_results and "recommended_media" in function_results:
-                    # Parse the scratch pad results to get recommended media files
-                    try:
-                        # Extract recommended media files from the results
-                        media_match = re.search(r"'recommended_media': \[(.*?)\]", function_results)
-                        if media_match:
-                            media_files_str = media_match.group(1)
-                            # Extract file paths (simple parsing for quoted strings)
-                            media_files = [f.strip().strip("'\"") for f in media_files_str.split(",") if f.strip().strip("'\"")]
-                            
-                            if media_files:
-                                if self.show_trace:
-                                    print(f"{Fore.YELLOW}🖼️  Auto-analyzing recommended media files...{Style.RESET_ALL}")
-                                
-                                # Call analyze_media_file for each recommended file
-                                for media_file in media_files:
-                                    if media_file:  # Skip empty strings
-                                        # Create a mock tool call for media analysis
-                                        media_result = self.tools.analyze_media_file(media_file)
-                                        
-                                        if self.show_trace:
-                                            if media_result.get("status") == "success":
-                                                analysis_text = media_result.get("analysis", "")
-                                                analysis_preview = analysis_text[:80] if isinstance(analysis_text, str) else str(analysis_text)[:80]
-                                                print(f"{Fore.GREEN}✅ Image analysis: {analysis_preview}...{Style.RESET_ALL}")
-                                            else:
-                                                print(f"{Fore.RED}❌ Image analysis failed: {media_result.get('message', 'Unknown error')}{Style.RESET_ALL}")
-                                        
-                                        # Add media analysis to conversation history as assistant message
-                                        media_analysis_text = media_result.get("analysis", "Analysis failed")
-                                        self.conversation_history.append({
-                                            "role": "assistant", 
-                                            "content": f"[INTERNAL] Media analysis of {media_file}: {media_analysis_text}"
-                                        })
-                    except Exception as e:
-                        if self.show_trace:
-                            print(f"{Fore.RED}❌ Error parsing media recommendations: {e}{Style.RESET_ALL}")
-                
-                # Get final response with all function results (INCLUDING mathematical functions)
-                final_response = self.client.responses.create(
-                    model="gpt-4.1",
-                    input=self._convert_messages_to_responses_input([{"role": "system", "content": self.system_prompt}] + self.conversation_history),
-                    tools=FUNCTION_SCHEMAS_RESPONSES,  # ✅ CRITICAL FIX: Enable mathematical functions
-                    store=False,  # CRITICAL: No stateful storage
-                    max_output_tokens=1000,
-                    temperature=0.7
-                )
-                
-                final_message, final_function_calls = self._handle_responses_api_output(final_response)
-                
-                # Handle any mathematical function calls in the final response
-                if final_function_calls:
-                    if self.show_trace:
-                        print(f"{Fore.CYAN}🧮 Mathematical functions called: {[call.function.name for call in final_function_calls]}{Style.RESET_ALL}")
-                    
-                    # Execute mathematical function calls
-                    math_function_results = self._handle_function_calls(final_function_calls)
-                    
-                    # Add function call to conversation history
-                    self.conversation_history.append({
-                        "role": "assistant",
-                        "content": final_message.content,
-                        "tool_calls": [
-                            {
-                                "id": call.id,
-                                "type": "function", 
-                                "function": {
-                                    "name": call.function.name,
-                                    "arguments": call.function.arguments
-                                }
-                            } for call in final_function_calls
-                        ]
-                    })
-                    
-                    # Add function results to conversation history
-                    for i, call in enumerate(final_function_calls):
-                        result_line = math_function_results.split("\n")[i] if i < len(math_function_results.split("\n")) else ""
-                        self.conversation_history.append({
-                            "role": "tool",
-                            "tool_call_id": call.id,
-                            "content": result_line
-                        })
-                    
-                    # Generate final natural language response with mathematical results
-                    natural_response = self.client.chat.completions.create(
-                        model="gpt-4.1",
-                        messages=[{"role": "system", "content": self.system_prompt}] + self.conversation_history,
-                        max_tokens=1000,
-                        temperature=0.7
-                    )
-                    
-                    luzia_response = natural_response.choices[0].message.content
-                else:
-                    luzia_response = final_message.content
-            else:
-                luzia_response = assistant_message.content
+                if self.show_trace and "✅" in math_function_results:
+                    print(f"{Fore.GREEN}✅ Math computation completed{Style.RESET_ALL}")
             
-            # Add Luzia's response to conversation history
+            # Use the final message content as the response
+            luzia_response = final_message.content
+            
+            # Update conversation history
+            self.conversation_history.append({"role": "user", "content": user_message})
             self.conversation_history.append({"role": "assistant", "content": luzia_response})
             
-            # Analyze conversation for scratchpad updates (runs 100% of the time)
-            try:
-                # Prepare function call data for update analysis
-                function_calls_data = []
-                tool_responses_data = []
-                
-                if function_calls:
-                    for call in function_calls:
-                        function_calls_data.append({
-                            "name": call.function.name,
-                            "arguments": call.function.arguments
-                        })
-                    
-                    if scratch_pad_results:
-                        tool_responses_data.append({
-                            "function": "get_scratch_pad_context", 
-                            "result": scratch_pad_results
-                        })
-                
-                # Run update analysis in background (invisible to user, but logged)
-                apply_conversation_updates(
-                    user_message=user_message,
-                    ai_response=luzia_response,
-                    function_calls=function_calls_data,
-                    tool_responses=tool_responses_data
-                )
-            except Exception as e:
-                # KISS: Don't let update failures break the conversation
-                if self.show_trace:
-                    print(f"{Fore.RED}[UPDATE] Update analysis failed: {e}{Style.RESET_ALL}")
+            # Store information in memory system
+            conversation_data = {
+                'user_message': user_message,
+                'ai_response': luzia_response,
+                'function_calls': final_function_calls or [],
+                'scratchpad_content': messages  # Full context
+            }
+            
+            if self.show_trace:
+                print(f"{Fore.MAGENTA}[UPDATE] Analyzing conversation for {self.memory_type} updates...{Style.RESET_ALL}")
+            
+            # Store in memory system
+            memory_success = self.memory.store_information(conversation_data)
+            
+            # Also apply traditional scratchpad updates for backward compatibility
+            if self.memory_type == 'scratchpad':
+                try:
+                    apply_conversation_updates(
+                        user_message=user_message,
+                        ai_response=luzia_response,
+                        function_calls=[],
+                        tool_responses=[]
+                    )
+                except Exception as e:
+                    if self.show_trace:
+                        print(f"{Fore.RED}[UPDATE] Traditional update failed: {e}{Style.RESET_ALL}")
+            
+            if self.show_trace:
+                status = "✅ stored" if memory_success else "❌ failed"
+                print(f"{Fore.MAGENTA}[UPDATE] Memory update {status}{Style.RESET_ALL}")
             
             return luzia_response
             
@@ -534,24 +484,45 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
             print(f"{Fore.YELLOW}👋 I'll restart fresh next time!{Style.RESET_ALL}")
 
 
+def select_memory_system() -> str:
+    """Interactive memory system selection."""
+    print(f"{Fore.CYAN}🧠 Select Memory System:{Style.RESET_ALL}")
+    print(f"{Fore.GREEN}1. Scratchpad (traditional file-based system){Style.RESET_ALL}")
+    print(f"{Fore.GREEN}2. MCP (Model Context Protocol knowledge graph){Style.RESET_ALL}")
+    
+    while True:
+        choice = input(f"{Fore.YELLOW}Enter your choice (1-2): {Style.RESET_ALL}").strip()
+        if choice == "1":
+            return "scratchpad"
+        elif choice == "2":
+            return "mcp"
+        else:
+            print(f"{Fore.RED}Invalid choice. Please enter 1 or 2.{Style.RESET_ALL}")
+
+
 def main():
     """Main entry point for Luzia."""
     try:
-        # Check for command line arguments
-        show_trace = True  # Default to showing trace
-        if len(sys.argv) > 1:
-            if "--no-trace" in sys.argv:
-                show_trace = False
-            elif "--help" in sys.argv or "-h" in sys.argv:
-                print(f"{Fore.CYAN}Luzia - Your Fun, Helpful AI Friend{Style.RESET_ALL}")
-                print(f"{Fore.WHITE}Usage: python luzia.py [options]{Style.RESET_ALL}")
-                print(f"{Fore.GREEN}Options:{Style.RESET_ALL}")
-                print(f"  --no-trace    Disable function call traceability")
-                print(f"  --help, -h    Show this help message")
-                return
+        # Parse command line arguments
+        import argparse
+        parser = argparse.ArgumentParser(description="Luzia - Your AI Friend")
+        parser.add_argument("--memory", choices=['scratchpad', 'mcp'], 
+                          help="Choose memory system (scratchpad or mcp)")
+        parser.add_argument("--no-trace", action="store_true", 
+                          help="Disable trace mode")
         
-        luzia = Luzia(show_trace=show_trace)
+        args = parser.parse_args()
+        
+        # Interactive memory selection if not specified
+        memory_system = args.memory
+        if not memory_system:
+            memory_system = select_memory_system()
+        
+        print(f"{Fore.CYAN}🧠 Using {memory_system.upper()} memory system{Style.RESET_ALL}")
+        
+        luzia = Luzia(show_trace=not args.no_trace, memory_system=memory_system)
         luzia.start_chat()
+        
     except ValueError as e:
         print(f"{Fore.RED}❌ Configuration error: {e}{Style.RESET_ALL}")
         print(f"{Fore.CYAN}💡 Make sure you've set up your .env file with your OpenAI API key{Style.RESET_ALL}")
