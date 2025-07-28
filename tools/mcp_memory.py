@@ -2,12 +2,14 @@
 """
 MCP Memory Implementation
 
-Uses OpenAI Responses API to communicate with MCP memory server for knowledge graph-based storage.
+Uses the actual MCP (Model Context Protocol) server via JSON-RPC communication.
 """
 
 import os
 import json
-import re
+import subprocess
+import threading
+import time
 from typing import Dict, Any, List, Optional
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -15,10 +17,10 @@ from .memory_interface import MemoryInterface
 
 
 class MCPMemory(MemoryInterface):
-    """MCP-based memory implementation using direct JSON file operations."""
+    """Real MCP implementation using JSON-RPC communication with MCP server."""
     
     def __init__(self, mcp_config_path: str = "config/mcp_config.json"):
-        """Initialize MCP memory with direct file access."""
+        """Initialize MCP memory with actual MCP server."""
         load_dotenv()
         
         # Initialize OpenAI client for text processing
@@ -28,109 +30,174 @@ class MCPMemory(MemoryInterface):
         
         self.client = OpenAI(api_key=api_key)
         
-        # Set up MCP memory file path
-        self.memory_file = "data/mcp_memory.json"
-        self._ensure_memory_file()
+        # Start MCP server
+        self.mcp_process = None
+        self._start_mcp_server()
     
-    def _ensure_memory_file(self):
-        """Ensure MCP memory file exists."""
-        os.makedirs("data", exist_ok=True)
-        if not os.path.exists(self.memory_file):
-            # Create empty memory structure
-            empty_memory = {
-                "entities": [],
-                "relations": []
-            }
-            with open(self.memory_file, 'w') as f:
-                json.dump(empty_memory, f, indent=2)
-    
-    def _load_memory(self) -> Dict[str, Any]:
-        """Load memory data from JSON file."""
+    def _start_mcp_server(self):
+        """Start the actual MCP memory server."""
         try:
-            with open(self.memory_file, 'r') as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            return {"entities": [], "relations": []}
+            # Ensure data directory exists
+            os.makedirs("data", exist_ok=True)
+            
+            # Set environment variable for memory file (absolute path)
+            env = os.environ.copy()
+            memory_file_path = os.path.abspath('./data/mcp_memory.json')
+            env['MEMORY_FILE_PATH'] = memory_file_path
+            
+            # Ensure the memory file exists
+            if not os.path.exists(memory_file_path):
+                with open(memory_file_path, 'w') as f:
+                    json.dump({"entities": [], "relations": []}, f, indent=2)
+            
+            # Start MCP server process
+            self.mcp_process = subprocess.Popen(
+                ['npx', '-y', '@modelcontextprotocol/server-memory'],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                text=True,
+                bufsize=0  # Unbuffered
+            )
+            
+            # Initialize the server
+            self._initialize_mcp_server()
+            
+            print("🚀 MCP Server started successfully")
+            
+        except Exception as e:
+            print(f"❌ Failed to start MCP server: {e}")
+            raise
     
-    def _save_memory(self, memory_data: Dict[str, Any]):
-        """Save memory data to JSON file."""
-        with open(self.memory_file, 'w') as f:
-            json.dump(memory_data, f, indent=2)
+    def _initialize_mcp_server(self):
+        """Initialize MCP server with proper handshake."""
+        # Send initialize request
+        init_request = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {
+                    "resources": {},
+                    "tools": {}
+                },
+                "clientInfo": {
+                    "name": "luzia",
+                    "version": "1.0.0"
+                }
+            }
+        }
+        
+        self._send_request(init_request)
+        
+        # Send initialized notification
+        initialized_notification = {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized"
+        }
+        
+        self._send_request(initialized_notification)
+        
+        # Query available tools (verify connection)
+        tools_request = {
+            "jsonrpc": "2.0",
+            "id": 10,
+            "method": "tools/list"
+        }
+        
+        tools_response = self._send_request(tools_request)
+        if "result" in tools_response:
+            print(f"✅ MCP tools loaded: {len(tools_response['result']['tools'])} available")
+    
+    def _send_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Send JSON-RPC request to MCP server."""
+        try:
+            request_json = json.dumps(request) + '\n'
+            self.mcp_process.stdin.write(request_json)
+            self.mcp_process.stdin.flush()
+            
+            # Read response if expecting one (has 'id')
+            if 'id' in request:
+                response_line = self.mcp_process.stdout.readline()
+                if response_line:
+                    return json.loads(response_line.strip())
+            
+            return {}
+            
+        except Exception as e:
+            print(f"❌ MCP communication error: {e}")
+            return {"error": str(e)}
+    
+    def __del__(self):
+        """Clean up MCP server process."""
+        if self.mcp_process:
+            self.mcp_process.terminate()
+            self.mcp_process.wait()
     
     def get_context(self, query: str) -> Dict[str, Any]:
-        """Get context by searching the knowledge graph."""
+        """Get context using MCP search_nodes tool."""
         try:
-            memory_data = self._load_memory()
-            
-            # Search for relevant entities and observations
-            relevant_info = []
-            query_lower = query.lower()
-            
-            # Enhanced search logic for name-related queries
-            is_name_query = any(keyword in query_lower for keyword in ['name', 'called', 'who am i', 'who are you'])
-            
-            # Search entities and their observations
-            for entity in memory_data.get("entities", []):
-                entity_name = entity.get("name", "").lower()
-                entity_type = entity.get("entityType", "").lower()
-                observations = entity.get("observations", [])
-                
-                # Enhanced matching logic
-                name_match = query_lower in entity_name or entity_name in query_lower
-                
-                # For name queries, also check for name-related observations
-                obs_match = False
-                for obs in observations:
-                    obs_lower = obs.lower()
-                    # Direct substring match
-                    if query_lower in obs_lower or obs_lower in query_lower:
-                        obs_match = True
-                        break
-                    # Name-specific matching
-                    if is_name_query and any(name_keyword in obs_lower for name_keyword in ['name', 'called']):
-                        obs_match = True
-                        break
-                
-                if name_match or obs_match:
-                    info = f"{entity['name']} ({entity_type})"
-                    if observations:
-                        info += f": {', '.join(observations)}"
-                    relevant_info.append(info)
-            
-            # Also check relations
-            for relation in memory_data.get("relations", []):
-                from_entity = relation.get("from", "").lower()
-                to_entity = relation.get("to", "").lower()
-                relation_type = relation.get("relationType", "").lower()
-                
-                if (query_lower in from_entity or from_entity in query_lower or
-                    query_lower in to_entity or to_entity in query_lower):
-                    relevant_info.append(f"{relation['from']} {relation['relationType']} {relation['to']}")
-            
-            if relevant_info:
-                context_text = "From knowledge graph: " + "; ".join(relevant_info)
-            else:
-                context_text = "No relevant information found in knowledge graph."
-            
-            return {
-                "status": "success",
-                "relevant_context": context_text,
-                "media_files_needed": False,
-                "recommended_media": [],
-                "reasoning": "Searched MCP knowledge graph file"
+            # Use MCP search_nodes tool
+            search_request = {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "name": "search_nodes",
+                    "arguments": {
+                        "query": query
+                    }
+                }
             }
             
+            response = self._send_request(search_request)
+            
+            if "result" in response:
+                search_results = response["result"].get("content", [])
+                
+                # Format the results
+                if search_results:
+                    context_parts = []
+                    for result in search_results:
+                        if isinstance(result, dict) and "text" in result:
+                            context_parts.append(result["text"])
+                        elif isinstance(result, str):
+                            context_parts.append(result)
+                    
+                    context_text = "From MCP knowledge graph: " + "; ".join(context_parts)
+                else:
+                    context_text = "No relevant information found in MCP knowledge graph."
+                
+                return {
+                    "status": "success",
+                    "relevant_context": context_text,
+                    "media_files_needed": False,
+                    "recommended_media": [],
+                    "reasoning": "Searched using MCP search_nodes tool"
+                }
+            else:
+                error_msg = response.get("error", {}).get("message", "Unknown MCP error")
+                return {
+                    "status": "error", 
+                    "message": f"MCP search error: {error_msg}",
+                    "relevant_context": "",
+                    "media_files_needed": False,
+                    "recommended_media": []
+                }
+                
         except Exception as e:
             return {
                 "status": "error",
-                "message": f"Error retrieving MCP context: {e}",
+                "message": f"Error communicating with MCP server: {e}",
                 "relevant_context": "",
                 "media_files_needed": False,
                 "recommended_media": []
             }
     
     def store_information(self, query: str, response: str, context: Dict[str, Any] = None) -> bool:
-        """Store information by extracting entities and relations from conversation."""
+        """Store information using MCP create_entities, create_relations, and add_observations tools."""
         try:
             # Use OpenAI to extract structured information
             analysis_prompt = f"""
@@ -182,60 +249,95 @@ class MCPMemory(MemoryInterface):
                     print(f"Could not parse JSON from: {response_text}")
                     return False
             
-            # Load current memory and merge new data
-            memory_data = self._load_memory()
+            # Use MCP tools to store the data
+            success = True
             
-            # Add new entities (avoiding duplicates)
-            existing_entity_names = {entity["name"] for entity in memory_data.get("entities", [])}
-            for entity in extracted_data.get("entities", []):
-                if entity["name"] not in existing_entity_names:
-                    memory_data.setdefault("entities", []).append(entity)
-                else:
-                    # Update existing entity with new observations
-                    for existing_entity in memory_data["entities"]:
-                        if existing_entity["name"] == entity["name"]:
-                            for obs in entity.get("observations", []):
-                                if obs not in existing_entity.get("observations", []):
-                                    existing_entity.setdefault("observations", []).append(obs)
+            # 1. Create entities
+            entities = extracted_data.get("entities", [])
+            if entities:
+                create_entities_request = {
+                    "jsonrpc": "2.0",
+                    "id": 3,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "create_entities",
+                        "arguments": {
+                            "entities": entities
+                        }
+                    }
+                }
+                
+                result = self._send_request(create_entities_request)
+                if "error" in result:
+                    print(f"MCP create_entities error: {result['error']}")
+                    success = False
             
-            # Add new relations (avoiding duplicates)
-            existing_relations = set()
-            for rel in memory_data.get("relations", []):
-                existing_relations.add((rel["from"], rel["to"], rel["relationType"]))
+            # 2. Create relations
+            relations = extracted_data.get("relations", [])
+            if relations:
+                create_relations_request = {
+                    "jsonrpc": "2.0",
+                    "id": 4,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "create_relations",
+                        "arguments": {
+                            "relations": relations
+                        }
+                    }
+                }
+                
+                result = self._send_request(create_relations_request)
+                if "error" in result:
+                    print(f"MCP create_relations error: {result['error']}")
+                    success = False
             
-            for relation in extracted_data.get("relations", []):
-                rel_tuple = (relation["from"], relation["to"], relation["relationType"])
-                if rel_tuple not in existing_relations:
-                    memory_data.setdefault("relations", []).append(relation)
-            
-            # Save updated memory
-            self._save_memory(memory_data)
-            return True
+            return success
             
         except Exception as e:
             print(f"Error storing information in MCP: {e}")
             return False
     
     def search(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
-        """Search MCP knowledge graph."""
+        """Search MCP knowledge graph using search_nodes tool."""
         try:
-            search_prompt = f"""
-            Search the knowledge graph for: "{query}"
-            Use search_nodes function and return the most relevant results.
-            """
+            search_request = {
+                "jsonrpc": "2.0",
+                "id": 5,
+                "method": "tools/call",
+                "params": {
+                    "name": "search_nodes",
+                    "arguments": {
+                        "query": query
+                    }
+                }
+            }
             
-            response = self.client.responses.create(
-                model="gpt-4.1",
-                input=[{"role": "user", "content": search_prompt}],
-                tools=self.mcp_tools,
-                store=False,
-                max_output_tokens=800,
-                temperature=0.1
-            )
+            response = self._send_request(search_request)
             
-            # Process search results
-            results = self._extract_search_results(response)
-            return results[:limit]
+            if "result" in response:
+                search_results = response["result"].get("content", [])
+                
+                # Format the results
+                formatted_results = []
+                for result in search_results[:limit]:
+                    if isinstance(result, dict) and "text" in result:
+                        formatted_results.append({
+                            "content": result["text"],
+                            "source": "MCP",
+                            "relevance": 1.0
+                        })
+                    elif isinstance(result, str):
+                        formatted_results.append({
+                            "content": result,
+                            "source": "MCP", 
+                            "relevance": 1.0
+                        })
+                
+                return formatted_results
+            else:
+                print(f"MCP search error: {response.get('error', {})}")
+                return []
             
         except Exception as e:
             print(f"Error searching MCP: {e}")
