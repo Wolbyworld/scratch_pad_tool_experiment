@@ -272,13 +272,22 @@ class MathTools:
             
             # Use SymPy for high-precision arithmetic
             expr = sympy.sympify(cleaned_expr)
-            result = expr.evalf()  # High precision evaluation
+            
+            # Try to evaluate as exact value first (preserves integers)
+            if expr.is_number:
+                result = expr
+            else:
+                result = expr.evalf()  # High precision evaluation for complex expressions
             
             # Convert to Python number for JSON serialization
             if result.is_Integer:
                 numeric_result = int(result)
             elif result.is_Float:
-                numeric_result = float(result)
+                # For large integers that became floats, try to convert back
+                if result == int(result):
+                    numeric_result = int(result)
+                else:
+                    numeric_result = float(result)
             else:
                 numeric_result = str(result)
             

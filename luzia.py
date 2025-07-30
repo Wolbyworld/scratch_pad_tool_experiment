@@ -200,7 +200,7 @@ When you have analyzed media files, use that information directly in your respon
                     if self.show_trace:
                         print(f"{Fore.MAGENTA}🖼️  Analyzing image: {file_path}{Style.RESET_ALL}")
                     
-                    result = self.tool_manager.execute_function("analyze_media_file", args)
+                    result = self.tool_manager.execute_function("analyze_media_file", **args)
                     
                     if self.show_trace:
                         if result.get("status") == "success":
@@ -217,7 +217,7 @@ When you have analyzed media files, use that information directly in your respon
                     if self.show_trace:
                         print(f"{Fore.CYAN}🧮 Processing math query: {query[:50]}...{Style.RESET_ALL}")
                     
-                    result = self.tool_manager.execute_function("solve_math", args)
+                    result = self.tool_manager.execute_function("solve_math", **args)
                     
                     if self.show_trace:
                         if result.get("status") == "success":
@@ -464,21 +464,23 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
                             "result": scratch_pad_results
                         })
                 
-                # Run update analysis in background (invisible to user, but logged)
-                apply_conversation_updates(
-                    user_message=user_message,
-                    ai_response=luzia_response,
-                    function_calls=function_calls_data,
-                    tool_responses=tool_responses_data
-                )
-                
-                # Also store information in the selected memory system
+                # Store information in the selected memory system
                 try:
                     context_data = {
                         "tools_called": function_calls_data,
                         "tool_responses": tool_responses_data
                     }
                     self.memory.store_information(user_message, luzia_response, context_data)
+                    
+                    # Also run scratchpad updates if using scratchpad memory (for backward compatibility)
+                    if self.memory.get_system_info()["type"] == "scratchpad":
+                        apply_conversation_updates(
+                            user_message=user_message,
+                            ai_response=luzia_response,
+                            function_calls=function_calls_data,
+                            tool_responses=tool_responses_data
+                        )
+                        
                 except Exception as e:
                     if self.show_trace:
                         print(f"{Fore.YELLOW}[MEMORY] Memory storage failed: {e}{Style.RESET_ALL}")

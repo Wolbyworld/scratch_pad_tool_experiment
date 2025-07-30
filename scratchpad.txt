@@ -11,7 +11,7 @@
 
 ### Gorilla Basketball Art
 - File Path: media/gorilla.png
-- Description: Artistic image of gorilla performing a slam dunk on a basketball hoop against a cityscape with buildings, a body of water, and wind turbines in the distance. The scene is urban and modern, with a blue sky and wispy clouds. The gorilla is actively performing a slam dunk.
+- Description: Artistic image of gorilla performing a slam dunk on a basketball hoop against a cityscape with buildings, a body of water, and wind turbines in the distance. The scene is urban and modern, with a sunny blue sky and wispy clouds. The gorilla is actively performing a slam dunk. The weather depicted is sunny.
 - Date Added: 2024-01-25
 - Tags: art, basketball, gorilla, sports, creative, humor
 - Summary: Creative/humorous sports-themed artwork featuring a gorilla athlete in mid-slam dunk
@@ -26,7 +26,7 @@ Known Programming Languages: Python, JavaScript
 - Loves Python programming (enthusiastic preference, confirmed)
 
 ### Personal Information
-- Full Name: Carlos
+- Full Name: Test User
 - Age: 37 
 - Location: Massachusetts, USA
 - Wife: Aloña Martiarena, 40 years old

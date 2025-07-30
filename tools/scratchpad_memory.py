@@ -26,14 +26,12 @@ class ScratchpadMemory(MemoryInterface):
         """Store information using existing update manager."""
         try:
             # Use existing update manager
-            conversation_data = {
-                "user_message": query,
-                "ai_response": response,
-                "function_tools_called": context.get("tools_called", []) if context else [],
-                "tool_responses": context.get("tool_responses", {}) if context else {}
-            }
-            
-            apply_conversation_updates(conversation_data)
+            apply_conversation_updates(
+                user_message=query,
+                ai_response=response,
+                function_calls=context.get("tools_called", []) if context else [],
+                tool_responses=context.get("tool_responses", []) if context else []
+            )
             return True
             
         except Exception as e:

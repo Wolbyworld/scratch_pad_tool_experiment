@@ -226,7 +226,7 @@ class MCPMemory(MemoryInterface):
             """
             
             response_obj = self.client.responses.create(
-                model="gpt-4.1",
+                model="gpt-4.1-nano",
                 input=[{"role": "user", "content": analysis_prompt}],
                 store=False,
                 max_output_tokens=500,

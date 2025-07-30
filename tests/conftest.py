@@ -14,20 +14,7 @@ from typing import Dict, Any
 def temp_scratchpad_file():
     """Create a temporary scratchpad file for testing."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
-        f.write("""
-USER FACTS:
-- User is learning Python programming
-- User prefers working with examples
-- User has experience with basic mathematics
-
-MEDIA-DOCUMENT SUMMARIES:
-- gorilla.png: Artistic image of a gorilla performing a slam dunk in what appears to be a basketball setting
-- sample.jpg: A sample image for testing purposes
-
-CONVERSATION HISTORY:
-- Previous discussion about mathematical problem-solving tools
-- User asked about SymPy integration for deterministic calculations
-""")
+        f.write("Test Scratchpad Content\n\nUSER FACTS:\n- User is learning Python programming\n- User prefers working with examples\n- User has experience with basic mathematics\n\nMEDIA-DOCUMENT SUMMARIES:\n- gorilla.png: Artistic image of a gorilla performing a slam dunk in what appears to be a basketball setting\n- sample.jpg: A sample image for testing purposes\n\nCONVERSATION HISTORY:\n- Previous discussion about mathematical problem-solving tools\n- User asked about SymPy integration for deterministic calculations")
         temp_file_path = f.name
     
     yield temp_file_path
@@ -43,7 +30,9 @@ CONVERSATION HISTORY:
 def temp_system_prompt_file():
     """Create a temporary system prompt file for testing."""
     with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
-        f.write("""⚠️ CRITICAL MATHEMATICAL QUERIES RULE - HIGHEST PRIORITY ⚠️
+        f.write("""test system prompt
+
+⚠️ CRITICAL MATHEMATICAL QUERIES RULE - HIGHEST PRIORITY ⚠️
 🚨 MANDATORY FOR ALL MATHEMATICAL PROBLEMS 🚨
 
 - For ANY mathematical query (equations, calculations, derivatives, integrals, algebra, arithmetic, etc.):
@@ -83,6 +72,13 @@ def scratch_pad_tools(temp_scratchpad_file, temp_system_prompt_file):
         scratchpad_file=temp_scratchpad_file,
         system_prompt_file=temp_system_prompt_file
     )
+
+
+@pytest.fixture
+def math_tools():
+    """Create MathTools instance for testing mathematical functions."""
+    from tools.math_tools import MathTools
+    return MathTools()
 
 
 @pytest.fixture
@@ -128,24 +124,34 @@ def sample_test_cases():
     """Sample test cases for mathematical operations."""
     return {
         "equations": [
-            ("2*x + 3 = 7", ["2"]),
-            ("x^2 - 4 = 0", ["-2", "2"]),
-            ("x + 1 = 0", ["-1"])
+            ("2*x + 3 = 7", "x", ["2"]),
+            ("x**2 - 4 = 0", "x", ["-2", "2"]),
+            ("x + 1 = 0", "x", ["-1"])
         ],
         "expressions": [
             ("2*x + 3*x", "5*x"),
-            ("x^2 + 2*x + 1", "(x + 1)**2"),
-            ("sin(x)^2 + cos(x)^2", "1")
+            ("x**2 + 2*x + 1", "(x + 1)**2"),
+            ("sin(x)**2 + cos(x)**2", "1")
         ],
         "derivatives": [
-            ("x^2", "2*x"),
-            ("sin(x)", "cos(x)"),
-            ("e^x", "exp(x)")
+            ("x**2", "x", 1, "2*x"),
+            ("sin(x)", "x", 1, "cos(x)"),
+            ("exp(x)", "x", 1, "exp(x)")
         ],
         "integrals": [
             ("x", "x**2/2"),
             ("2*x", "x**2"),
-            ("x^2", "x**3/3")
+            ("x**2", "x**3/3")
+        ],
+        "factors": [
+            ("x**2 - 1", "(x - 1)*(x + 1)"),
+            ("x**2 + 2*x + 1", "(x + 1)**2"),
+            ("6*x**2 + 11*x + 3", "(2*x + 3)*(3*x + 1)")
+        ],
+        "arithmetic": [
+            ("2 + 3 * 4", 14),
+            ("100 / 4", 25),
+            ("2**3", 8)
         ]
     }
 
