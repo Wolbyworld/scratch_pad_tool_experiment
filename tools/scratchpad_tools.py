@@ -87,25 +87,29 @@ SCRATCH PAD CONTENT:
 {scratchpad_content}
 
 Please follow the system prompt rules to determine if media files are needed and provide your response in JSON format:
+
+IMPORTANT: For mathematical queries, use exactly: "Mathematical calculation required - specific tools needed for: [brief description]"
+
 {{
-    "relevant_context": "extracted relevant information",
+    "relevant_context": "extracted relevant information OR for math queries: 'Mathematical calculation required - specific tools needed for: [description]'",
     "media_files_needed": true/false,
     "recommended_media": ["list", "of", "file", "paths"],
     "reasoning": "why these media files would be helpful (or why not needed)"
 }}"""
             
-            response = self.client.chat.completions.create(
+            response = self.client.responses.create(
                 model="gpt-4o-mini",
-                messages=[
+                input=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message}
                 ],
-                max_tokens=800,
+                store=False,  # No stateful storage
+                max_output_tokens=800,
                 temperature=0.1
             )
             
             # Parse the response
-            response_content = response.choices[0].message.content
+            response_content = response.output_text
             
             # Try to extract JSON from the response
             try:

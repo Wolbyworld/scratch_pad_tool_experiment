@@ -36,13 +36,14 @@ class MediaTools:
         except Exception as e:
             return f"Error encoding image: {e}"
     
-    def analyze_media_file(self, file_path: str) -> Dict[str, Any]:
+    def analyze_media_file(self, file_path: str, user_question: str = None) -> Dict[str, Any]:
         """
         Analyze a media file (image) and return detailed description.
         This function is called when the scratch pad indicates media analysis is needed.
         
         Args:
             file_path: Path to the media file to analyze
+            user_question: The specific question the user is asking about this media (optional)
             
         Returns:
             Dict containing media analysis results
@@ -62,7 +63,7 @@ class MediaTools:
             
             if file_ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp']:
                 # Handle image files
-                return self._analyze_image(file_path)
+                return self._analyze_image(file_path, user_question)
             elif file_ext == '.pdf':
                 # For now, return basic info for PDFs (can be enhanced later)
                 return {
@@ -88,7 +89,7 @@ class MediaTools:
                 "file_type": "unknown"
             }
     
-    def _analyze_image(self, image_path: str) -> Dict[str, Any]:
+    def _analyze_image(self, image_path: str, user_question: str = None) -> Dict[str, Any]:
         """Analyze an image file using GPT-4o-mini vision capabilities."""
         try:
             # Encode image to base64
@@ -112,7 +113,24 @@ class MediaTools:
                 '.webp': 'image/webp'
             }.get(file_ext, 'image/png')
             
-            # Analyze image with GPT-4o-mini
+            # Create context-aware prompt based on user question
+            if user_question:
+                # Create a specific prompt based on the user's question
+                if any(word in user_question.lower() for word in ['count', 'how many', 'number of']):
+                    analysis_prompt = f"The user is asking: '{user_question}'. Please count and provide the exact number of items they're asking about in this image. Be specific and precise with your count."
+                elif any(word in user_question.lower() for word in ['what color', 'color of', 'colors']):
+                    analysis_prompt = f"The user is asking: '{user_question}'. Please focus on describing the colors in this image, being specific about the hues, shades, and color relationships you observe."
+                elif any(word in user_question.lower() for word in ['where', 'location', 'position']):
+                    analysis_prompt = f"The user is asking: '{user_question}'. Please focus on describing the locations and positions of objects in this image."
+                elif any(word in user_question.lower() for word in ['what is', 'what are', 'describe', 'tell me about']):
+                    analysis_prompt = f"The user is asking: '{user_question}'. Please provide a detailed description focusing on what they're specifically asking about in this image."
+                else:
+                    analysis_prompt = f"The user is asking: '{user_question}'. Please analyze this image with a focus on answering their specific question. Provide relevant details that directly address what they want to know."
+            else:
+                # Default general analysis prompt
+                analysis_prompt = "Analyze this image in detail. Describe what you see, including objects, people, text, colors, composition, and any other relevant details that would be helpful for someone asking about this image."
+            
+            # Analyze image with GPT-4o-mini using Chat Completions API (required for vision)
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
@@ -121,7 +139,7 @@ class MediaTools:
                         "content": [
                             {
                                 "type": "text",
-                                "text": "Analyze this image in detail. Describe what you see, including objects, people, text, colors, composition, and any other relevant details that would be helpful for someone asking about this image."
+                                "text": analysis_prompt
                             },
                             {
                                 "type": "image_url",

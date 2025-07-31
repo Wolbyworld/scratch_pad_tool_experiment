@@ -165,4 +165,5 @@ __all__ = [
 ]
 
 # Function schemas for OpenAI function calling - now generated from ToolManager
-FUNCTION_SCHEMAS = ToolManager().get_function_schemas() 
+# Use "chat" format for backward compatibility with existing tests and code
+FUNCTION_SCHEMAS = ToolManager().get_function_schemas("chat") 

@@ -33,10 +33,18 @@ class MathTools:
     def _parse_expression_safely(self, expression: str) -> sympy.Basic:
         """Safely parse a mathematical expression using SymPy with controlled transformations."""
         try:
-            # Clean the expression - remove any potentially dangerous characters
-            cleaned_expr = re.sub(r'[^a-zA-Z0-9+\-*/()^=\s\.,_]', '', expression)
+            # Check for obviously invalid patterns first
+            if not expression or not expression.strip():
+                raise ValueError("Empty expression")
             
-            # Handle common mathematical notations that users naturally write
+            # Check for invalid characters that shouldn't be in mathematical expressions
+            invalid_chars = re.findall(r'[^a-zA-Z0-9+\-*/()^=\s\.,_]', expression)
+            if invalid_chars:
+                raise ValueError(f"Invalid characters found: {set(invalid_chars)}")
+            
+            # Clean the expression for common mathematical notations
+            cleaned_expr = expression.strip()
+            
             # Convert x^2 to x**2 (exponentiation)
             cleaned_expr = re.sub(r'\^', '**', cleaned_expr)
             
@@ -264,13 +272,22 @@ class MathTools:
             
             # Use SymPy for high-precision arithmetic
             expr = sympy.sympify(cleaned_expr)
-            result = expr.evalf()  # High precision evaluation
+            
+            # Try to evaluate as exact value first (preserves integers)
+            if expr.is_number:
+                result = expr
+            else:
+                result = expr.evalf()  # High precision evaluation for complex expressions
             
             # Convert to Python number for JSON serialization
             if result.is_Integer:
                 numeric_result = int(result)
             elif result.is_Float:
-                numeric_result = float(result)
+                # For large integers that became floats, try to convert back
+                if result == int(result):
+                    numeric_result = int(result)
+                else:
+                    numeric_result = float(result)
             else:
                 numeric_result = str(result)
             
@@ -319,18 +336,19 @@ class MathTools:
                 }
             
             # Step 2: Get routing decision from GPT-4.1-mini (using as placeholder for nano)
-            routing_response = self.client.chat.completions.create(
+            routing_response = self.client.responses.create(
                 model="gpt-4o-mini",  # Using mini as placeholder for GPT-4.1-nano
-                messages=[
+                input=[
                     {"role": "system", "content": routing_system_prompt},
                     {"role": "user", "content": f"Query: {query}"}
                 ],
-                max_tokens=100,
+                store=False,  # No stateful storage
+                max_output_tokens=100,
                 temperature=0.1
             )
             
             # Step 3: Parse routing decision
-            routing_json = routing_response.choices[0].message.content.strip()
+            routing_json = routing_response.output_text.strip()
             
             # Clean JSON response (remove any markdown formatting)
             if routing_json.startswith('```'):
@@ -414,7 +432,9 @@ class MathTools:
         
         # Remove common prefixes
         cleaned = re.sub(r'^(solve|find|what is|calculate)\s+', '', query.lower())
-        cleaned = re.sub(r'^(the\s+)?(equation|expression)\s+', '', cleaned)
+        cleaned = re.sub(r'^(for|the\s+)?(equation|expression)\s+', '', cleaned)
+        # Handle "solve for x = ..." pattern specifically
+        cleaned = re.sub(r'^for\s+', '', cleaned)
         
         # Look for equation patterns
         equation_match = re.search(r'([0-9a-zA-Z+\-*/^=().\s]+)', cleaned)

@@ -30,7 +30,7 @@ class TestScratchPadContext:
             assert "reasoning" in result
             
             # Verify OpenAI client was called
-            mock_openai_client.chat.completions.create.assert_called_once()
+            mock_openai_client.responses.create.assert_called_once()
     
     @pytest.mark.unit
     def test_get_scratch_pad_context_file_not_found(self, temp_system_prompt_file):
@@ -63,9 +63,9 @@ class TestScratchPadContext:
             mock_openai.return_value = mock_client
             
             mock_response = Mock()
-            mock_response.choices = [Mock()]
-            mock_response.choices[0].message.content = json.dumps(mock_response_with_media)
-            mock_client.chat.completions.create.return_value = mock_response
+            mock_response.output_text = json.dumps(mock_response_with_media)
+            mock_response.output = []
+            mock_client.responses.create.return_value = mock_response
             
             tools = ScratchPadTools(temp_scratchpad_file, temp_system_prompt_file)
             tools.client = mock_client
@@ -85,10 +85,10 @@ class TestScratchPadContext:
             mock_openai.return_value = mock_client
             
             mock_response = Mock()
-            mock_response.choices = [Mock()]
             # Invalid JSON response
-            mock_response.choices[0].message.content = "This is not valid JSON"
-            mock_client.chat.completions.create.return_value = mock_response
+            mock_response.output_text = "This is not valid JSON"
+            mock_response.output = []
+            mock_client.responses.create.return_value = mock_response
             
             tools = ScratchPadTools(temp_scratchpad_file, temp_system_prompt_file)
             tools.client = mock_client
@@ -113,9 +113,9 @@ class TestScratchPadContext:
             mock_openai.return_value = mock_client
             
             mock_response = Mock()
-            mock_response.choices = [Mock()]
-            mock_response.choices[0].message.content = json.dumps(partial_json)
-            mock_client.chat.completions.create.return_value = mock_response
+            mock_response.output_text = json.dumps(partial_json)
+            mock_response.output = []
+            mock_client.responses.create.return_value = mock_response
             
             tools = ScratchPadTools(temp_scratchpad_file, temp_system_prompt_file)
             tools.client = mock_client
@@ -148,9 +148,9 @@ class TestScratchPadContext:
             mock_openai.return_value = mock_client
             
             mock_response = Mock()
-            mock_response.choices = [Mock()]
-            mock_response.choices[0].message.content = markdown_wrapped_response
-            mock_client.chat.completions.create.return_value = mock_response
+            mock_response.output_text = markdown_wrapped_response
+            mock_response.output = []
+            mock_client.responses.create.return_value = mock_response
             
             tools = ScratchPadTools(temp_scratchpad_file, temp_system_prompt_file)
             tools.client = mock_client
@@ -169,7 +169,7 @@ class TestScratchPadContext:
             mock_openai.return_value = mock_client
             
             # Mock API error
-            mock_client.chat.completions.create.side_effect = Exception("API rate limit exceeded")
+            mock_client.responses.create.side_effect = Exception("API rate limit exceeded")
             
             tools = ScratchPadTools(temp_scratchpad_file, temp_system_prompt_file)
             tools.client = mock_client
@@ -221,8 +221,8 @@ class TestScratchPadContext:
                 
                 assert result["status"] == "success"
                 # Verify the large content was passed to OpenAI
-                call_args = mock_openai_client.chat.completions.create.call_args
-                user_message = call_args[1]["messages"][1]["content"]
+                call_args = mock_openai_client.responses.create.call_args
+                user_message = call_args[1]["input"][1]["content"]
                 assert "This is a test line." in user_message
         finally:
             os.unlink(large_scratchpad)
@@ -246,7 +246,14 @@ class TestScratchPadContext:
                     "recommended_media": [],
                     "reasoning": "Using fallback"
                 })
-                mock_client.chat.completions.create.return_value = mock_response
+                mock_response.output_text = json.dumps({
+                    "relevant_context": "test context",
+                    "media_files_needed": False,
+                    "recommended_media": [],
+                    "reasoning": "Using fallback"
+                })
+                mock_response.output = []
+                mock_client.responses.create.return_value = mock_response
                 
                 tools = ScratchPadTools(temp_scratchpad_file, nonexistent_prompt)
                 tools.client = mock_client
@@ -257,8 +264,8 @@ class TestScratchPadContext:
                 assert result["status"] == "success"
                 
                 # Verify fallback system prompt was used
-                call_args = mock_client.chat.completions.create.call_args
-                system_message = call_args[1]["messages"][0]["content"]
+                call_args = mock_client.responses.create.call_args
+                system_message = call_args[1]["input"][0]["content"]
                 assert "context extraction specialist" in system_message
 
 
@@ -343,8 +350,8 @@ class TestScratchPadEdgeCases:
                 
                 assert result["status"] == "success"
                 # Should handle Unicode properly
-                call_args = mock_openai_client.chat.completions.create.call_args
-                user_message = call_args[1]["messages"][1]["content"]
+                call_args = mock_openai_client.responses.create.call_args
+                user_message = call_args[1]["input"][1]["content"]
                 assert "José María" in user_message
                 assert "🚀" in user_message
         finally:

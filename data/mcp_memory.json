@@ -1,0 +1,98 @@
+{"type":"entity","name":"Alvaro","entityType":"person","observations":["User's name is Alvaro"]}
+{"type":"entity","name":"User","entityType":"person","observations":["Asked about their name","Name not saved by AI"]}
+{"type":"entity","name":"AI","entityType":"other","observations":["Does not have user's name saved","Can remember user's name if told"]}
+{"type":"entity","name":"Carlos","entityType":"person","observations":["loves Python"]}
+{"type":"entity","name":"Python","entityType":"concept","observations":[]}
+{"type":"entity","name":"Álvaro","entityType":"person","observations":["User in the conversation"]}
+{"type":"entity","name":"Luzia","entityType":"person","observations":["AI assistant","Describes self as fun and helpful friend"]}
+{"type":"entity","name":"coding","entityType":"concept","observations":[]}
+{"type":"entity","name":"JavaScript","entityType":"concept","observations":[]}
+{"type":"entity","name":"user","entityType":"person","observations":[]}
+{"type":"entity","name":"user's wife","entityType":"person","observations":[]}
+{"type":"entity","name":"Aloña","entityType":"person","observations":["Is the user's wife"]}
+{"type":"entity","name":"2^2","entityType":"concept","observations":["Represents 2 to the power of 2","Equals 4"]}
+{"type":"entity","name":"Equation 2+2-x2=0","entityType":"concept","observations":["Mathematical equation presented by User"]}
+{"type":"entity","name":"2x + 2x^2 = 0","entityType":"concept","observations":["Quadratic equation","Solved by factoring"]}
+{"type":"entity","name":"x = 0","entityType":"concept","observations":["Solution to the equation 2x + 2x^2 = 0"]}
+{"type":"entity","name":"x = -1","entityType":"concept","observations":["Solution to the equation 2x + 2x^2 = 0"]}
+{"type":"entity","name":"x^2 - 4 = 0","entityType":"concept","observations":["quadratic equation","solved by user query"]}
+{"type":"entity","name":"x = 2","entityType":"concept","observations":["solution to x^2 - 4 = 0"]}
+{"type":"entity","name":"x = -2","entityType":"concept","observations":["solution to x^2 - 4 = 0"]}
+{"type":"entity","name":"legend","entityType":"concept","observations":["suggested nickname for User"]}
+{"type":"entity","name":"reminder","entityType":"concept","observations":["user finds reminders useful"]}
+{"type":"entity","name":"2+x+2=0","entityType":"concept","observations":["mathematical equation","solution is x = -4"]}
+{"type":"entity","name":"math","entityType":"concept","observations":[]}
+{"type":"entity","name":"e^3=log_10 x","entityType":"concept","observations":["mathematical equation involving exponentials and logarithms"]}
+{"type":"entity","name":"log_10 x","entityType":"concept","observations":["logarithm base 10"]}
+{"type":"entity","name":"ln(x)","entityType":"concept","observations":["natural logarithm"]}
+{"type":"entity","name":"e³ = log₁₀(x)","entityType":"concept","observations":["mathematical equation"]}
+{"type":"entity","name":"x = 10^(e³)","entityType":"concept","observations":["solution to e³ = log₁₀(x)","x is approximately 2.06 × 10³⁵"]}
+{"type":"entity","name":"ego","entityType":"concept","observations":["associated with User","considered very large"]}
+{"type":"entity","name":"2.06 × 10³⁵","entityType":"other","observations":["used as a comparison for size"]}
+{"type":"entity","name":"2x+2y=0","entityType":"concept","observations":["Equation representing a linear relationship"]}
+{"type":"entity","name":"5y+5x=0","entityType":"concept","observations":["Equation representing a linear relationship"]}
+{"type":"entity","name":"x = -y","entityType":"concept","observations":["Solution to the equations","Variables are negatives of each other"]}
+{"type":"entity","name":"infinite solutions","entityType":"concept","observations":["The equations have infinitely many solutions"]}
+{"type":"entity","name":"2+2+e^x=0","entityType":"concept","observations":["mathematical equation"]}
+{"type":"entity","name":"x","entityType":"concept","observations":["variable in the equation"]}
+{"type":"entity","name":"e^x","entityType":"concept","observations":["exponential function"]}
+{"type":"entity","name":"2 + 2x^2 = 0","entityType":"concept","observations":["equation involving variables and constants","solved for x"]}
+{"type":"entity","name":"x = i","entityType":"concept","observations":["complex solution to the equation","i is the imaginary unit"]}
+{"type":"entity","name":"x = -i","entityType":"concept","observations":["complex solution to the equation","i is the imaginary unit"]}
+{"type":"entity","name":"i","entityType":"concept","observations":["imaginary unit","square root of -1"]}
+{"type":"relation","from":"User","to":"AI","relationType":"asked_name"}
+{"type":"relation","from":"AI","to":"User","relationType":"can_remember_name_if_told"}
+{"type":"relation","from":"Carlos","to":"Python","relationType":"likes"}
+{"type":"relation","from":"User","to":"Carlos","relationType":"possible_name"}
+{"type":"relation","from":"User","to":"Alvaro","relationType":"possible_name"}
+{"type":"relation","from":"User","to":"Python","relationType":"loves"}
+{"type":"relation","from":"User","to":"AI","relationType":"initiates_conversation"}
+{"type":"relation","from":"Álvaro","to":"Luzia","relationType":"introduction"}
+{"type":"relation","from":"Luzia","to":"Álvaro","relationType":"offers_help"}
+{"type":"relation","from":"Alvaro","to":"coding","relationType":"likes"}
+{"type":"relation","from":"Carlos","to":"JavaScript","relationType":"likes"}
+{"type":"relation","from":"User","to":"AI","relationType":"can provide name to"}
+{"type":"relation","from":"AI","to":"User","relationType":"can remember name of"}
+{"type":"relation","from":"user","to":"user's wife","relationType":"spouse"}
+{"type":"relation","from":"User","to":"Aloña","relationType":"spouse"}
+{"type":"relation","from":"User","to":"Aloña","relationType":"formerly married"}
+{"type":"relation","from":"User","to":"Aloña","relationType":"ex-spouse"}
+{"type":"relation","from":"2^2","to":"4","relationType":"equals"}
+{"type":"relation","from":"User","to":"Equation 2+2-x2=0","relationType":"asked_about"}
+{"type":"relation","from":"AI","to":"Equation 2+2-x2=0","relationType":"solved"}
+{"type":"relation","from":"AI","to":"User","relationType":"provided_solution"}
+{"type":"relation","from":"2x + 2x^2 = 0","to":"x = 0","relationType":"has_solution"}
+{"type":"relation","from":"2x + 2x^2 = 0","to":"x = -1","relationType":"has_solution"}
+{"type":"relation","from":"x^2 - 4 = 0","to":"x = 2","relationType":"has_solution"}
+{"type":"relation","from":"x^2 - 4 = 0","to":"x = -2","relationType":"has_solution"}
+{"type":"relation","from":"User","to":"AI","relationType":"greeting"}
+{"type":"relation","from":"AI","to":"User","relationType":"offers nickname"}
+{"type":"relation","from":"legend","to":"User","relationType":"potential nickname"}
+{"type":"relation","from":"Alvaro","to":"legend","relationType":"is_referred_as"}
+{"type":"relation","from":"Alvaro","to":"reminder","relationType":"finds_useful"}
+{"type":"relation","from":"User","to":"2+x+2=0","relationType":"solved"}
+{"type":"relation","from":"AI","to":"math","relationType":"likes"}
+{"type":"relation","from":"User","to":"e^3=log_10 x","relationType":"queried_about"}
+{"type":"relation","from":"AI","to":"User","relationType":"responded_to"}
+{"type":"relation","from":"e^3=log_10 x","to":"log_10 x","relationType":"contains"}
+{"type":"relation","from":"AI","to":"e^3=log_10 x","relationType":"identified_typo_in"}
+{"type":"relation","from":"AI","to":"ln(x)","relationType":"offered_alternative"}
+{"type":"relation","from":"User","to":"e³ = log₁₀(x)","relationType":"selected_option"}
+{"type":"relation","from":"e³ = log₁₀(x)","to":"x = 10^(e³)","relationType":"has_solution"}
+{"type":"relation","from":"User","to":"ego","relationType":"possesses"}
+{"type":"relation","from":"ego","to":"2.06 × 10³⁵","relationType":"larger_than"}
+{"type":"relation","from":"User","to":"AI","relationType":"initiates_conversation_with"}
+{"type":"relation","from":"AI","to":"User","relationType":"responds_to"}
+{"type":"relation","from":"User","to":"AI","relationType":"interacts_with"}
+{"type":"relation","from":"User","to":"AI","relationType":"interacting_with"}
+{"type":"relation","from":"User","to":"AI","relationType":"asked about"}
+{"type":"relation","from":"2x+2y=0","to":"5y+5x=0","relationType":"equivalent"}
+{"type":"relation","from":"2x+2y=0","to":"x = -y","relationType":"solution"}
+{"type":"relation","from":"5y+5x=0","to":"x = -y","relationType":"solution"}
+{"type":"relation","from":"x = -y","to":"infinite solutions","relationType":"implies"}
+{"type":"relation","from":"2+2+e^x=0","to":"x","relationType":"contains variable"}
+{"type":"relation","from":"2+2+e^x=0","to":"e^x","relationType":"contains term"}
+{"type":"relation","from":"2 + 2x^2 = 0","to":"x = i","relationType":"has_solution"}
+{"type":"relation","from":"2 + 2x^2 = 0","to":"x = -i","relationType":"has_solution"}
+{"type":"relation","from":"x = i","to":"i","relationType":"contains"}
+{"type":"relation","from":"x = -i","to":"i","relationType":"contains"}
