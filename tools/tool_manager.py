@@ -10,6 +10,7 @@ from typing import Dict, Any
 from .math_tools import MathTools
 from .scratchpad_tools import ScratchPadTools
 from .media_tools import MediaTools
+from .image_tools import ImageTools
 
 
 class ToolManager:
@@ -26,6 +27,7 @@ class ToolManager:
         self.math_tools = MathTools()
         self.scratchpad_tools = ScratchPadTools(scratchpad_file, system_prompt_file)
         self.media_tools = MediaTools()
+        self.image_tools = ImageTools()
     
     def execute_function(self, function_name: str, **kwargs) -> Dict[str, Any]:
         """Execute a function by name with the appropriate tool.
@@ -66,6 +68,16 @@ class ToolManager:
         
         elif function_name == "calculate_complex_arithmetic":
             return self.math_tools.calculate_complex_arithmetic(**kwargs)
+        
+        # Image generation functions
+        elif function_name == "generate_image":
+            return self.image_tools.generate_image(**kwargs)
+        
+        elif function_name == "improve_prompt":
+            return self.image_tools.improve_prompt(**kwargs)
+        
+        elif function_name == "generate_image_with_context":
+            return self.image_tools.generate_image_with_context(**kwargs)
         
         else:
             return {
@@ -109,6 +121,11 @@ class ToolManager:
                         "file_path": {
                             "type": "string",
                             "description": "Path to the media file to analyze (e.g., 'media/gorilla.png')"
+                        },
+                        "user_question": {
+                            "type": "string",
+                            "description": "The specific question the user is asking that requires media analysis (optional but recommended for context-aware analysis)",
+                            "default": ""
                         }
                     },
                     "required": ["file_path"]
@@ -127,6 +144,31 @@ class ToolManager:
                         }
                     },
                     "required": ["query"]
+                }
+            },
+            {
+                "type": "function",
+                "name": "generate_image",
+                "description": "Generate an image using DALL-E. Use this when the user requests image creation, generation, or visual content. The function automatically improves prompts for better results.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "prompt": {
+                            "type": "string",
+                            "description": "The image generation prompt describing what to create"
+                        },
+                        "improve_prompt": {
+                            "type": "boolean",
+                            "description": "Whether to enhance the prompt automatically (default: true)",
+                            "default": True
+                        },
+                        "additional_instructions": {
+                            "type": "string",
+                            "description": "Additional instructions for prompt enhancement (optional)",
+                            "default": ""
+                        }
+                    },
+                    "required": ["prompt"]
                 }
             }
         ]
@@ -158,4 +200,9 @@ class ToolManager:
     @property
     def media(self) -> MediaTools:
         """Direct access to media tools."""
-        return self.media_tools 
+        return self.media_tools
+    
+    @property
+    def image(self) -> ImageTools:
+        """Direct access to image tools."""
+        return self.image_tools 

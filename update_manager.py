@@ -158,7 +158,44 @@ AI RESPONSE:
         if tool_responses:
             context += "\nTOOL RESPONSES:\n"
             for i, response in enumerate(tool_responses):
-                context += f"{i+1}. {str(response)[:200]}...\n"
+                # Handle complex responses safely
+                response_str = str(response)
+                if isinstance(response, dict):
+                    if 'function' in response and response['function'] == 'generate_image':
+                        # Extract key info from image generation
+                        result = response.get('result', {})
+                        if isinstance(result, str) and 'file_path' in result:
+                            context += f"{i+1}. Image generated and saved to media folder\n"
+                        elif isinstance(result, dict):
+                            file_path = result.get('file_path', 'unknown')
+                            prompt = result.get('final_prompt', result.get('original_prompt', 'unknown'))
+                            context += f"{i+1}. Image generated: {file_path}, prompt: {prompt[:100]}...\n"
+                        else:
+                            context += f"{i+1}. Image generation response: {str(result)[:100]}...\n"
+                    else:
+                        context += f"{i+1}. {response_str[:200]}...\n"
+                elif "Image generation:" in response_str and "file_path" in response_str:
+                    # Parse image generation result from string format
+                    try:
+                        import re
+                        file_path_match = re.search(r"'file_path': '([^']+)'", response_str)
+                        prompt_match = re.search(r"'final_prompt': '([^']+)'", response_str)
+                        original_prompt_match = re.search(r"'original_prompt': '([^']+)'", response_str)
+                        
+                        if file_path_match:
+                            file_path = file_path_match.group(1)
+                            final_prompt = prompt_match.group(1) if prompt_match else None
+                            original_prompt = original_prompt_match.group(1) if original_prompt_match else None
+                            prompt = final_prompt or original_prompt or "unknown prompt"
+                            
+                            # Store the actual local file path for the update system
+                            context += f"{i+1}. Image generated: ACTUAL_FILE_PATH={file_path}, description: {prompt[:100]}...\n"
+                        else:
+                            context += f"{i+1}. {response_str[:200]}...\n"
+                    except:
+                        context += f"{i+1}. {response_str[:200]}...\n"
+                else:
+                    context += f"{i+1}. {response_str[:200]}...\n"
         
         return context
     
@@ -244,8 +281,8 @@ Please analyze this conversation and determine if any updates to the scratchpad 
         
         if action == 'update' and 'replaces' in update:
             # Replace existing text
-            old_text = update['replaces']
-            new_text = update['content']
+            old_text = str(update['replaces'])
+            new_text = str(update['content'])
             if old_text in content:
                 content = content.replace(old_text, new_text)
                 self._log_update_analysis(f"Updated: {old_text[:50]}... → {new_text[:50]}...", Fore.YELLOW)
@@ -253,7 +290,7 @@ Please analyze this conversation and determine if any updates to the scratchpad 
         elif action == 'add':
             # Add new content to appropriate section
             section = update.get('section', '')
-            new_content = update['content']
+            new_content = str(update['content'])
             
             if section in content:
                 # Find section and add content
@@ -269,7 +306,7 @@ Please analyze this conversation and determine if any updates to the scratchpad 
             
         elif action == 'remove':
             # Remove existing text
-            text_to_remove = update['content']
+            text_to_remove = str(update['content'])
             if text_to_remove in content:
                 content = content.replace(text_to_remove, '')
                 self._log_update_analysis(f"Removed: {text_to_remove[:50]}...", Fore.YELLOW)

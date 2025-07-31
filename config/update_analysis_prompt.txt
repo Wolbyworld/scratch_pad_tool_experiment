@@ -23,6 +23,7 @@ You will receive:
 - **Project status updates**: Progress on current work, completed tasks, new projects started
 - **Important preferences**: Strong likes/dislikes, working styles, tool preferences
 - **Media file updates**: New descriptions or corrections about existing media files
+- **Image generation**: When AI generates new images for the user, extract the ACTUAL_FILE_PATH from tool responses and store in proper markdown format like existing entries (- File Path: ..., - Description: ..., etc.), NOT JSON format
 
 ### SHOULD UPDATE - Medium Priority  
 - **New relationships**: People mentioned with meaningful context
@@ -108,6 +109,25 @@ User: "I finished the scratchpad tool and started working on a mobile app"
   ]
 }
 ```
+
+**Image Generation**:
+AI response contains "[SYSTEM_INFO: Image saved to media/generated_xyz123.png]"
+```json
+{
+  "should_update": true,
+  "confidence": "high",
+  "reasoning": "New AI-generated image with local file path in SYSTEM_INFO",
+  "updates": [
+    {
+      "action": "add",
+      "section": "MEDIA DOCUMENTS",
+      "content": "- File Path: media/generated_xyz123.png\n- Description: [Extract from AI response]\n- Date Added: [Current date]\n- Tags: AI-generated, [relevant tags from content]"
+    }
+  ]
+}
+```
+
+CRITICAL: Look for [SYSTEM_INFO: Image saved to ...] in AI responses to get the LOCAL file path (media/generated_*.png), NEVER use temporary https URLs.
 
 ## IMPORTANT GUIDELINES
 

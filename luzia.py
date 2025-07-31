@@ -245,6 +245,24 @@ When you have analyzed media files, use that information directly in your respon
                             print(f"{Fore.RED}❌ Math error: {result.get('message', 'Unknown error')}{Style.RESET_ALL}")
                     
                     results.append(f"Math result: {result}")
+                
+                elif function_name == "generate_image":
+                    prompt = args["prompt"]
+                    if self.show_trace:
+                        print(f"{Fore.CYAN}🎨 Generating image: {prompt[:50]}...{Style.RESET_ALL}")
+                    
+                    result = self.tool_manager.execute_function("generate_image", **args)
+                    
+                    if self.show_trace:
+                        if result.get("status") == "success":
+                            file_path = result.get("file_path", "")
+                            final_prompt = result.get("final_prompt", "")[:60]
+                            print(f"{Fore.GREEN}✅ Image generated: {file_path}{Style.RESET_ALL}")
+                            print(f"{Fore.BLUE}🖼️  Final prompt: {final_prompt}...{Style.RESET_ALL}")
+                        else:
+                            print(f"{Fore.RED}❌ Image generation failed: {result.get('message', 'Unknown error')}{Style.RESET_ALL}")
+                    
+                    results.append(f"Image generation: {result}")
                     
                 else:
                     results.append(f"Unknown function: {function_name}")
@@ -363,7 +381,7 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
                                 for media_file in media_files:
                                     if media_file:  # Skip empty strings
                                         # Create a mock tool call for media analysis
-                                        media_result = self.tools.analyze_media_file(media_file)
+                                        media_result = self.tool_manager.execute_function("analyze_media_file", file_path=media_file)
                                         
                                         if self.show_trace:
                                             if media_result.get("status") == "success":
@@ -395,13 +413,26 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
                 
                 final_message, final_function_calls = self._handle_responses_api_output(final_response)
                 
-                # Handle any mathematical function calls in the final response
+                # Handle any additional function calls in the final response
                 if final_function_calls:
                     if self.show_trace:
-                        print(f"{Fore.CYAN}🧮 Mathematical functions called: {[call.function.name for call in final_function_calls]}{Style.RESET_ALL}")
+                        function_names = [call.function.name for call in final_function_calls]
+                        if any(name in ['solve_math', 'solve_equation', 'simplify_expression', 'calculate_derivative', 'calculate_integral', 'factor_expression', 'calculate_complex_arithmetic'] for name in function_names):
+                            print(f"{Fore.CYAN}🧮 Mathematical functions called: {function_names}{Style.RESET_ALL}")
+                        elif any(name == 'generate_image' for name in function_names):
+                            print(f"{Fore.CYAN}🎨 Image generation functions called: {function_names}{Style.RESET_ALL}")
+                        else:
+                            print(f"{Fore.CYAN}🔧 Functions called: {function_names}{Style.RESET_ALL}")
                     
-                    # Execute mathematical function calls
-                    math_function_results = self._handle_function_calls(final_function_calls)
+                    # Execute function calls
+                    additional_function_results = self._handle_function_calls(final_function_calls)
+                    
+                    # Extract local file path from image generation results for update system
+                    local_file_path = None
+                    if any(call.function.name == 'generate_image' for call in final_function_calls):
+                        file_path_match = re.search(r"'file_path': '([^']+)'", additional_function_results)
+                        if file_path_match:
+                            local_file_path = file_path_match.group(1)
                     
                     # Add function call to conversation history
                     self.conversation_history.append({
@@ -421,14 +452,14 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
                     
                     # Add function results to conversation history
                     for i, call in enumerate(final_function_calls):
-                        result_line = math_function_results.split("\n")[i] if i < len(math_function_results.split("\n")) else ""
+                        result_line = additional_function_results.split("\n")[i] if i < len(additional_function_results.split("\n")) else ""
                         self.conversation_history.append({
                             "role": "tool",
                             "tool_call_id": call.id,
                             "content": result_line
                         })
                     
-                    # Generate final natural language response with mathematical results
+                    # Generate final natural language response with function results
                     natural_response = self.client.chat.completions.create(
                         model="gpt-4.1",
                         messages=[{"role": "system", "content": self.system_prompt}] + self.conversation_history,
@@ -437,6 +468,10 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
                     )
                     
                     luzia_response = natural_response.choices[0].message.content
+                    
+                    # Append local file path info to response for update system
+                    if local_file_path:
+                        luzia_response += f"\n\n[SYSTEM_INFO: Image saved to {local_file_path}]"
                 else:
                     luzia_response = final_message.content
             else:
@@ -466,14 +501,29 @@ Timestamp: {json.dumps(messages, indent=2, ensure_ascii=False)}
                 
                 # Store information in the selected memory system
                 try:
+                    # Enhanced context data for image generation
                     context_data = {
                         "tools_called": function_calls_data,
                         "tool_responses": tool_responses_data
                     }
-                    self.memory.store_information(user_message, luzia_response, context_data)
                     
-                    # Also run scratchpad updates if using scratchpad memory (for backward compatibility)
-                    if self.memory.get_system_info()["type"] == "scratchpad":
+                    # Add image generation metadata if present
+                    for call in function_calls_data:
+                        if call.get("name") == "generate_image":
+                            # Find corresponding tool response for image generation
+                            for response in tool_responses_data:
+                                if "Image generation:" in str(response):
+                                    # Extract file path from result
+                                    response_str = str(response)
+                                    if "file_path" in response_str:
+                                        context_data["generated_image"] = True
+                                        break
+                    
+                    # Only use memory system if it's NOT scratchpad (to avoid duplication)
+                    if self.memory.get_system_info()["type"] != "scratchpad":
+                        self.memory.store_information(user_message, luzia_response, context_data)
+                    else:
+                        # For scratchpad, use the traditional update system directly
                         apply_conversation_updates(
                             user_message=user_message,
                             ai_response=luzia_response,
