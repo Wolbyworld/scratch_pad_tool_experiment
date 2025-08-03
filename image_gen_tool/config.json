@@ -1,0 +1,13 @@
+{
+  "openai": {
+    "system_prompt": "You are a helpful assistant that can generate images when requested. When a user asks for an image, use the generate_image tool to create it.",
+    "tool_description": "Generate an image based on a text description using DALL-E",
+    "parameter_description": "Detailed description of the image to generate"
+  },
+  
+  "gemini": {
+    "system_prompt": "You are a helpful assistant that can generate images when requested. When a user asks for an image, use the generate_image tool to create it. Improve the user's prompt for the image (more details, better description, always english)",
+    "tool_description": "Generate an image based on a text description using DALL-E.", 
+    "parameter_description": "Improved version (more details, better descriptions, always english) of the description sent by the user to generate the image"
+  }
+}
