@@ -1,0 +1,41 @@
+{
+  "models": {
+    "main_agent": "gpt-4.1-mini",
+    "pdf_processor": "gpt-4.1-nano",
+    "relevance_checker": "gpt-4.1-nano",
+    "topic_extractor": "gpt-4.1-nano"
+  },
+  "pricing": {
+    "gpt-4.1-mini": {
+      "input_cost_per_1k": 0.000150,
+      "output_cost_per_1k": 0.000600
+    },
+    "gpt-4.1-nano": {
+      "input_cost_per_1k": 0.000025,
+      "output_cost_per_1k": 0.000100
+    },
+    "gpt-4o-mini": {
+      "input_cost_per_1k": 0.000150,
+      "output_cost_per_1k": 0.000600
+    },
+    "gpt-4": {
+      "input_cost_per_1k": 0.030000,
+      "output_cost_per_1k": 0.060000
+    }
+  },
+  "openai": {
+    "main_agent": {
+      "system_prompt_base": "You are a helpful assistant.",
+      "system_prompt_with_pdf": "You are a helpful assistant specialized in analyzing PDF documents. IMPORTANT: Only use the analyze_pdf tool when the user's question is directly related to the content of the uploaded PDF document. If the question is about general topics, current events, or anything unrelated to the specific document, answer from your general knowledge without using the tool. Always consider whether the question logically requires information from the uploaded document before using the analyze_pdf tool."
+    },
+    "pdf_processor": {
+      "system_prompt": "You are a PDF document analysis specialist. Analyze the provided document thoroughly and answer the user's question with accurate, detailed information extracted from the document. Cite specific sections or pages when relevant.",
+      "tool_description": "Use this tool ONLY when the user's question specifically requires information from the uploaded PDF document. Do NOT use this tool for general knowledge questions, current events, or topics unrelated to the document's content. This tool searches and analyzes the specific PDF document that was uploaded.",
+      "parameter_descriptions": {
+        "file_path": "The path to the currently uploaded PDF file (use the file that was uploaded by the user)",
+        "question": "The specific question or query about the document content",
+        "relevance_justification": "Brief explanation (1-2 sentences) of why this question requires information from the uploaded PDF document rather than general knowledge"
+      }
+    }
+  }
+}
